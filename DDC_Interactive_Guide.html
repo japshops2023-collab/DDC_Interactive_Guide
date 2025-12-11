@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบหมวดหมู่ห้องสมุด DDC (000-900)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+    <!-- Chosen Palette: Warm Library (Neutral Cream Background, Deep Charcoal Text, Warm Amber/Terracotta Accents) -->
+    <style>
+        body {
+            font-family: 'Noto Sans Thai', sans-serif;
+            background-color: #fdfbf7; /* Warm off-white */
+            color: #1e293b; /* Slate 800 */
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 350px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+        .card-hover:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+        
+        /* Custom styles for active filter buttons in stats view */
+        .active-filter-btn {
+            background-color: white;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+        .active-filter-btn:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
+            transform: translateY(-1px);
+        }
+        
+        /* Class applied when a filter button is active/selected */
+        .selected-filter {
+            color: white !important;
+            font-weight: 700;
+            border-bottom: 4px solid white;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        /* Ensure chart container for stats has enough space */
+        #statsChartContainer {
+            width: 100%; 
+            height: 550px; /* Sufficient height for large screen chart */
+        }
+        @media (max-width: 1024px) {
+             #statsChartContainer {
+                height: 400px; 
+            }
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row justify-between items-center">
+            <div class="flex items-center space-x-3 mb-4 md:mb-0">
+                <!-- LOGO Replacement with URL and Placeholder Fallback -->
+                <img src="https://img2.pic.in.th/pic/596946871_1250467433784861_5424304838626834382_n.jpg" 
+                     alt="โลโก้ระบบ DDC" 
+                     class="w-12 h-12 object-contain rounded-lg shadow-md"
+                     onerror="this.onerror=null; this.src='https://placehold.co/48x48/64748b/ffffff?text=DDC';"
+                >
+                <div>
+                    <!-- UPDATED: Main title with organization name -->
+                    <h1 class="text-xl md:text-2xl font-bold">ห้องสมุดองค์การบริหารส่วนจังหวัดพิษณุโลก</h1>
+                    <p class="text-xs text-slate-400">ระบบหมวดหมู่ DDC Explorer</p>
+                </div>
+            </div>
+            
+            <!-- Navigation/Utility Group - เพิ่มปุ่ม "หลักการใช้ห้องสมุด" -->
+            <div class="flex items-center space-x-4 w-full md:w-auto mt-4 md:mt-0">
+                <!-- NEW: Library Policy Button (Primary color for general info) -->
+                <button id="policyNavBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-semibold shadow-md w-full md:w-auto">
+                    หลักการใช้ห้องสมุด
+                </button>
+                <!-- Existing Statistics Navigation Button (Amber for stats/data) -->
+                <button id="statsNavBtn" class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-semibold shadow-md w-full md:w-auto">
+                    สถิติการยืมหนังสือ
+                </button>
+                <div class="w-full md:w-64">
+                    <input type="text" id="searchInput" placeholder="ค้นหาหมวดหมู่ หรือ ชื่อเรื่อง... (เช่น คอมพิวเตอร์, 000)" 
+                        class="w-full px-4 py-2 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-inner bg-slate-100">
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+
+        <!-- DDC Explorer View Container (Default View) -->
+        <div id="ddcExplorerView">
+            <!-- Intro Section -->
+            <section class="mb-12 text-center max-w-3xl mx-auto">
+                <!-- UPDATED: Welcome message -->
+                <h2 class="text-3xl font-bold text-slate-800 mb-4">ยินดีต้อนรับสู่ห้องสมุดองค์การบริหารส่วนจังหวัดพิษณุโลก</h2>
+                <p class="text-lg text-slate-600 leading-relaxed">
+                    <!-- UPDATED: Replaced the DDC introduction with the Library's name as the subject -->
+                    **ห้องสมุดองค์การบริหารส่วนจังหวัดพิษณุโลก** ได้ใช้ระบบทศนิยมดิวอี้ (DDC) ในการแบ่งสรรพวิชาออกเป็นหมวดหมู่หลัก เพื่อให้ง่ายต่อการค้นหาและจัดเก็บ 
+                    แอปพลิเคชันนี้ออกแบบมาให้คุณสำรวจหมวดหมู่ตั้งแต่ <strong>000 (ความรู้ทั่วไป)</strong> ถึง <strong>900 (ประวัติศาสตร์)</strong> 
+                    ผ่านแผนภาพแบบโต้ตอบและการ์ดข้อมูลที่เข้าใจง่าย ลองคลิกที่วงล้อด้านล่าง หรือคลิกที่การ์ดหมวดหมู่ย่อยทางด้านขวาเพื่อเริ่มสำรวจสถิติ
+                </p>
+            </section>
+
+            <!-- Dashboard Grid -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
+                
+                <!-- Visualization Column (Interactive Wheel) -->
+                <div class="lg:col-span-5 flex flex-col items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <div class="text-center mb-4">
+                        <h3 class="text-xl font-bold text-slate-700">วงล้อหมวดหมู่หลัก (Main Classes)</h3>
+                        <p class="text-sm text-slate-500">คลิกที่สีในวงล้อเพื่อดูรายละเอียดหมวดหมู่ย่อย</p>
+                    </div>
+                    
+                    <div class="w-full flex justify-center items-center flex-grow">
+                        <!-- Chart Container adhering to strict styling requirements -->
+                        <div class="chart-container">
+                            <canvas id="ddcChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Stats / Legend substitute -->
+                    <div id="chart-caption" class="mt-4 text-center text-slate-600 font-medium bg-slate-50 px-4 py-2 rounded-lg w-full">
+                        แสดงหมวดหมู่ทั้งหมด 10 หมวดหลัก
+                    </div>
+                </div>
+
+                <!-- Details Column (Dynamic List) -->
+                <div class="lg:col-span-7 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
+                    <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                        <div>
+                            <h3 id="category-title" class="text-2xl font-bold text-slate-800">หมวดหมู่ทั้งหมด</h3>
+                            <p id="category-desc" class="text-sm text-slate-500">คลิกที่การ์ดเพื่อดูสถิติการยืมรายเดือน</p>
+                        </div>
+                        <button id="resetBtn" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-semibold transition-colors hidden">
+                            แสดงทั้งหมด
+                        </button>
+                    </div>
+
+                    <!-- Scrollable Content Area -->
+                    <div id="content-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 max-h-[600px]">
+                        <!-- JS will populate cards here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Reference Section -->
+            <section class="bg-amber-50 rounded-2xl p-8 border border-amber-100">
+                <div class="flex items-start space-x-4">
+                    <div class="text-4xl text-amber-600">💡</div>
+                    <div>
+                        <h3 class="text-xl font-bold text-amber-900 mb-2">รู้หรือไม่?</h3>
+                        <p class="text-amber-800">
+                            ตัวเลขหลักร้อย (เช่น 100, 200) บอกหมวดใหญ่, ตัวเลขหลักสิบ (เช่น 110, 120) บอกหมวดแยกย่อย 
+                            ระบบนี้ช่วยให้ห้องสมุดทั่วโลกจัดเรียงหนังสือในลักษณะเดียวกัน ทำให้คุณหาหนังสือเล่มเดิมเจอไม่ว่าจะอยู่ที่ไหน
+                        </p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- NEW: Policy View Container (Initially Hidden) -->
+        <div id="policyView" class="hidden">
+            <div class="bg-white p-8 rounded-2xl shadow-lg">
+                <h2 class="text-3xl font-bold text-indigo-800 mb-4">หลักการใช้ห้องสมุด</h2>
+                <p class="text-xl text-slate-600 mb-6">
+                    หน้านี้แสดงกฎระเบียบและแนวทางการปฏิบัติที่สำคัญสำหรับการใช้บริการต่างๆ ภายในห้องสมุดองค์การบริหารส่วนจังหวัดพิษณุโลก:
+                </p>
+                
+                <ul class="list-disc list-inside space-y-3 text-slate-700 ml-4 p-4 border rounded-xl bg-gray-50">
+                    <li class="font-semibold text-lg text-indigo-700">ระเบียบการยืม-คืน</li>
+                    <ul class="list-circle list-inside ml-6 space-y-2">
+                        <li><strong>การยืม:</strong> สมาชิกสามารถยืมหนังสือได้ไม่เกิน 5 เล่มต่อครั้ง ระยะเวลาการยืม 7 วัน</li>
+                        <li><strong>การคืน:</strong> กรุณาคืนหนังสือตามกำหนด หากเกินกำหนดจะมีค่าปรับ</li>
+                    </ul>
+                    
+                    <li class="font-semibold text-lg text-indigo-700 mt-4">ค่าปรับและค่าชดเชย</li>
+                    <ul class="list-circle list-inside ml-6 space-y-2">
+                        <li><strong>ค่าปรับ:</strong> 5 บาท ต่อเล่ม ต่อวัน</li>
+                        <li><strong>หนังสือสูญหาย/เสียหาย:</strong> ผู้ยืมต้องชดใช้เป็นหนังสือฉบับใหม่ หรือชำระค่าหนังสือตามราคาจริง พร้อมค่าดำเนินการ (ถ้ามี)</li>
+                    </ul>
+
+                    <li class="font-semibold text-lg text-indigo-700 mt-4">มารยาทในการใช้ห้องสมุด</li>
+                    <ul class="list-circle list-inside ml-6 space-y-2">
+                        <li>กรุณาสำรวมและรักษาความสงบ ไม่ส่งเสียงดัง</li>
+                        <li>ห้ามนำอาหารหรือเครื่องดื่มเข้ามาในพื้นที่อ่านหนังสือ ยกเว้นน้ำดื่มบรรจุขวดมิดชิด</li>
+                    </ul>
+                </ul>
+
+                
+                <button id="backToDdcPolicyBtn" class="mt-8 px-6 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors font-semibold shadow-md self-start">
+                    &larr; กลับไปที่ DDC Explorer
+                </button>
+            </div>
+        </div>
+
+
+        <!-- Existing: Statistics View Container (Initially Hidden) -->
+        <div id="statsView" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Left Column: Filter/Selector (Like Main Classes List) -->
+            <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-md border border-slate-100 h-fit">
+                <h3 class="text-2xl font-bold text-slate-800 mb-4 border-b pb-2">เลือกหมวดหมู่หลัก DDC</h3>
+                <div id="statsFilterGrid" class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-1">
+                    <!-- Filter buttons will be generated here -->
+                </div>
+            </div>
+            
+            <!-- Right Column: Chart Area -->
+            <div class="lg:col-span-9 bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col">
+                <h2 class="text-3xl font-bold text-slate-800 mb-2">สถิติการยืมหนังสือรายเดือน</h2>
+                
+                <!-- Dynamic Title -->
+                <h3 id="statsChartTitle" class="text-xl font-semibold text-slate-700 mt-2 mb-4">ภาพรวมสถิติการยืม 12 เดือน</h3>
+                
+                <!-- UPDATED DESCRIPTION -->
+                <p class="text-lg text-slate-600 mb-6">
+                    กราฟเส้นนี้แสดงแนวโน้มจำนวนการยืมหนังสือในช่วง 12 เดือนที่ผ่านมา (ข้อมูลจำลอง). 
+                    คุณสามารถคลิกที่ปุ่มหมวดหมู่หลักด้านซ้ายเพื่อเน้นสถิติเฉพาะหมวดนั้นได้.
+                </p>
+
+                <!-- Chart Container -->
+                <div id="statsChartContainer" class="w-full flex-grow">
+                    <canvas id="statsChart"></canvas>
+                </div>
+                
+                <button id="backToDdcBtn" class="mt-8 px-6 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors font-semibold shadow-md self-start">
+                    &larr; กลับไปที่ DDC Explorer
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-800 text-slate-300 py-6 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm">
+            <!-- UPDATED: Footer text -->
+            <p>&copy; 2024 องค์การบริหารส่วนจังหวัดพิษณุโลก</p>
+            <p class="mt-1">ระบบ DDC Explorer.</p>
+        </div>
+    </footer>
+
+    <!-- JavaScript Logic -->
+    <script>
+        // --- Data Source ---
+        const ddcData = [
+            {
+                code: "000",
+                title: "คอมพิวเตอร์, สารสนเทศ, และความรู้ทั่วไป",
+                color: "#64748b", // Slate
+                description: "หมวดหมู่นี้ครอบคลุมวิชาการที่เพิ่งเกิดขึ้นใหม่ เช่น วิทยาการคอมพิวเตอร์ เทคโนโลยีสารสนเทศ รวมถึงงานอ้างอิงและสื่อทั่วไป เช่น บรรณานุกรม บรรณารักษศาสตร์ สารานุกรม และวารสารทั่วไป. ตามคำขอ หมวดหมู่นี้จะแสดงเฉพาะรายการหลัก 000 เท่านั้น",
+                divisions: [
+                    { code: "000", name: "คอมพิวเตอร์, สารสนเทศ, และความรู้ทั่วไป" }
+                ]
+            },
+            {
+                code: "100",
+                title: "ปรัชญาและจิตวิทยา",
+                color: "#F87171", // Red
+                description: "หมวดหมู่นี้ครอบคลุมแนวคิดหลักเกี่ยวกับความเป็นจริง ความรู้ ค่านิยม และความคิดของมนุษย์ รวมถึงสาขาย่อยสำคัญ เช่น อภิปรัชญา ตรรกศาสตร์ และจิตวิทยาเชิงประยุกต์ เนื้อหาส่วนใหญ่มุ่งเน้นไปที่การทำความเข้าใจจิตใจและพฤติกรรมมนุษย์.",
+                divisions: [
+                    { code: "100", name: "ปรัชญาและจิตวิทยา" },
+                    { code: "110", name: "อภิปรัชญา (Metaphysics)" },
+                    { code: "120", name: "ญาณวิทยา (Epistemology) ความเป็นเหตุผล" },
+                    { code: "130", name: "จิตวิทยานามธรรม (Parapsychology) และไสยศาสตร์" },
+                    { code: "140", name: "แนวความคิดปรัชญาเฉพาะกลุ่ม" },
+                    { code: "150", name: "จิตวิทยา (Psychology)" },
+                    { code: "160", name: "ตรรกศาสตร์ (Logic)" },
+                    { code: "170", name: "จริยธรรมและศีลธรรม (Ethics)" },
+                    { code: "180", name: "ปรัชญาสมัยโบราณ, สมัยกลาง, และปรัชญาตะวันออก" },
+                    { code: "190", name: "ปรัชญาตะวันตกสมัยใหม่" }
+                ]
+            },
+            {
+                code: "200",
+                title: "ศาสนา",
+                color: "#FB923C", // Orange
+                description: "รวบรวมงานเขียนทั้งหมดที่เกี่ยวกับศาสนาโลกต่างๆ รวมถึงประวัติศาสตร์ พิธีกรรม หลักคำสอน และความเชื่อทางศาสนา เน้นหนักที่ศาสนาคริสต์ในหมวด 220-280 และศาสนาเปรียบเทียบในหมวด 290 ซึ่งรวมถึงศาสนาพุทธ อิสลาม และยูดาย.",
+                divisions: [
+                    { code: "200", name: "ศาสนา" },
+                    { code: "210", name: "ปรัชญาและทฤษฎีทางศาสนา" },
+                    { code: "220", name: "พระคัมภีร์ไบเบิล" },
+                    { code: "230", name: "ศาสนาคริสต์ หลักคำสอน" },
+                    { code: "240", name: "ศีลธรรมชาวคริสต์ และการปฏิบัติ" },
+                    { code: "250", name: "ระเบียบแบบแผนของศาสนาคริสต์และนักบวช" },
+                    { code: "260", name: "สังคมและศาสนจักร" },
+                    { code: "270", name: "ประวัติศาสนาคริสต์" },
+                    { code: "280", name: "นิกายต่างๆ ในศาสนาคริสต์" },
+                    { code: "290", name: "ศาสนาเปรียบเทียบและศาสนาอื่นๆ (เช่น พุทธ, อิสลาม)" }
+                ]
+            },
+            {
+                code: "300",
+                title: "สังคมศาสตร์",
+                color: "#FACC15", // Yellow
+                description: "ศึกษาโครงสร้าง พัฒนาการ และปฏิสัมพันธ์ของสังคมมนุษย์ในหลากหลายด้าน ครอบคลุมเศรษฐศาสตร์ รัฐศาสตร์ กฎหมาย การศึกษา ปัญหาสังคม และมานุษยวิทยา เป็นหัวใจสำคัญในการทำความเข้าใจการจัดระเบียบและพฤติกรรมของชุมชน.",
+                divisions: [
+                    { code: "300", name: "สังคมศาสตร์, สังคมวิทยา และมานุษยวิทยา" },
+                    { code: "310", name: "สถิติทั่วไป" },
+                    { code: "320", name: "รัฐศาสตร์ (Political science)" },
+                    { code: "330", name: "เศรษฐศาสตร์ (Economics)" },
+                    { code: "340", name: "กฎหมาย (Law)" },
+                    { code: "350", name: "รัฐประศาสนศาสตร์ และการบริหารกองทัพ" },
+                    { code: "360", name: "ปัญหาสังคมและบริการสังคม" },
+                    { code: "370", name: "การศึกษา (Education)" },
+                    { code: "380", name: "การพาณิชย์, การสื่อสาร และการขนส่ง" },
+                    { code: "390", name: "ขนบธรรมเนียม, ประเพณี และคติชนวิทยา" }
+                ]
+            },
+            {
+                code: "400",
+                title: "ภาษาศาสตร์",
+                color: "#A3E635", // Lime
+                description: "หมวดหมู่นี้เกี่ยวข้องกับภาษาในฐานะระบบสื่อสาร รวมถึงไวยากรณ์ พจนานุกรม และภาษาเฉพาะต่างๆ โดย 410 เป็นภาษาศาสตร์ทั่วไป และ 420-490 เป็นภาษาตามลำดับ เช่น อังกฤษ, เยอรมัน, ฝรั่งเศส, และภาษาอื่นๆ.",
+                divisions: [
+                    { code: "400", name: "ภาษาศาสตร์ (ภาพรวม)" },
+                    { code: "410", name: "ภาษาศาสตร์" },
+                    { code: "420", name: "ภาษาอังกฤษ" },
+                    { code: "430", name: "ภาษาเยอรมัน" },
+                    { code: "440", name: "ภาษาฝรั่งเศส" },
+                    { code: "450", name: "ภาษาอิตาลี" },
+                    { code: "460", name: "ภาษาสเปน และโปรตุเกส" },
+                    { code: "470", name: "ภาษาละติน" },
+                    { code: "480", name: "ภาษากรีก" },
+                    { code: "490", name: "ภาษาอื่นๆ (เช่น ภาษาไทย, ภาษาจีน)" }
+                ]
+            },
+            {
+                code: "500",
+                title: "วิทยาศาสตร์บริสุทธิ์",
+                color: "#4ADE80", // Green
+                description: "เป็นหมวดหมู่สำหรับงานวิจัยและทฤษฎีทางวิทยาศาสตร์ธรรมชาติ ครอบคลุม คณิตศาสตร์ ดาราศาสตร์ ฟิสิกส์ เคมี ธรณีวิทยา และชีววิทยา โดยเน้นความรู้พื้นฐานที่ค้นพบเพื่อทำความเข้าใจโลกและจักรวาล.",
+                divisions: [
+                    { code: "500", name: "วิทยาศาสตร์" },
+                    { code: "510", name: "คณิตศาสตร์ (Mathematics)" },
+                    { code: "520", name: "ดาราศาสตร์ (Astronomy)" },
+                    { code: "530", name: "ฟิสิกส์ (Physics)" },
+                    { code: "540", name: "เคมี (Chemistry)" },
+                    { code: "550", name: "วิทยาศาสตร์โลก (Earth sciences) และธรณีวิทยา" },
+                    { code: "560", name: "บรรพชีวินวิทยา (Paleontology) / ฟอสซิล" },
+                    { code: "570", name: "ชีววิทยา (Biology)" },
+                    { code: "580", name: "พฤกษศาสตร์ (Plants)" },
+                    { code: "590", name: "สัตววิทยา (Animals)" }
+                ]
+            },
+            {
+                code: "600",
+                title: "วิทยาศาสตร์ประยุกต์และเทคโนโลยี",
+                color: "#2DD4BF", // Teal
+                description: "รวบรวมความรู้ที่นำไปประยุกต์ใช้ในการแก้ปัญหาในชีวิตจริง รวมถึง แพทยศาสตร์ วิศวกรรมศาสตร์ เกษตรศาสตร์ การจัดการธุรกิจ และการก่อสร้าง เป็นหมวดที่เน้นการปฏิบัติและการสร้างสรรค์สิ่งใหม่ๆ.",
+                divisions: [
+                    { code: "600", name: "เทคโนโลยี (วิทยาศาสตร์ประยุกต์)" },
+                    { code: "610", name: "แพทยศาสตร์และสุขภาพ (Medicine & Health)" },
+                    { code: "620", name: "วิศวกรรมศาสตร์ (Engineering)" },
+                    { code: "630", name: "เกษตรศาสตร์ (Agriculture)" },
+                    { code: "640", name: "คหกรรมศาสตร์และชีวิตครอบครัว" },
+                    { code: "650", name: "การจัดการธุรกิจ (Management)" },
+                    { code: "660", name: "วิศวกรรมเคมี" },
+                    { code: "670", name: "โรงงานอุตสาหกรรม" },
+                    { code: "680", name: "สินค้าที่ผลิตด้วยเครื่องจักรเฉพาะอย่าง" },
+                    { code: "690", name: "การก่อสร้าง (Building)" }
+                ]
+            },
+            {
+                code: "700",
+                title: "ศิลปะและนันทนาการ",
+                color: "#38BDF8", // Sky
+                description: "ครอบคลุมการแสดงออกทางวัฒนธรรมและความคิดสร้างสรรค์ของมนุษย์ รวมถึง สถาปัตยกรรม ประติมากรรม จิตรกรรม ดนตรี การถ่ายภาพ และกีฬา เป็นแหล่งรวมหนังสือที่เน้นสุนทรียภาพและความบันเทิง.",
+                divisions: [
+                    { code: "700", name: "ศิลปะ" },
+                    { code: "710", name: "การวางผังเมืองและสถาปัตยกรรมภูมิทัศน์" },
+                    { code: "720", name: "สถาปัตยกรรม (Architecture)" },
+                    { code: "730", name: "ประติมากรรม (Sculpture)" },
+                    { code: "740", name: "การวาดเขียนและมัณฑนศิลป์" },
+                    { code: "750", name: "จิตรกรรม (Painting) และภาพเขียน" },
+                    { code: "760", name: "ศิลปะการพิมพ์ (Graphic arts)" },
+                    { code: "770", name: "การถ่ายภาพ (Photography)" },
+                    { code: "780", name: "ดนตรี (Music)" },
+                    { code: "790", name: "ศิลปะการแสดง, นันทนาการ และกีฬา" }
+                ]
+            },
+            {
+                code: "800",
+                title: "วรรณคดี",
+                color: "#818CF8", // Indigo
+                description: "สำหรับงานเขียนเชิงสร้างสรรค์ในรูปแบบต่างๆ เช่น บทกวี บทละคร นวนิยาย และเรียงความ โดยมีการจัดแบ่งย่อยตามภาษาและภูมิภาคเพื่อให้ง่ายต่อการค้นหาวรรณกรรมเฉพาะด้าน.",
+                divisions: [
+                    { code: "800", name: "วรรณคดีและวาทศิลป์" },
+                    { code: "810", name: "วรรณคดีอเมริกัน" },
+                    { code: "820", name: "วรรณคดีอังกฤษ" },
+                    { code: "830", name: "วรรณคดีเยอรมัน" },
+                    { code: "840", name: "วรรณคดีฝรั่งเศส" },
+                    { code: "850", name: "วรรณคดีอิตาลี" },
+                    { code: "860", name: "วรรณคดีสเปนและโปรตุเกส" },
+                    { code: "870", name: "วรรณคดีละติน" },
+                    { code: "880", name: "วรรณคดีกรีก" },
+                    { code: "890", name: "วรรณคดีภาษาอื่นๆ (รวมถึงวรรณคดีไทย)" }
+                ]
+            },
+            {
+                code: "900",
+                title: "ประวัติศาสตร์และภูมิศาสตร์",
+                color: "#C084FC", // Purple
+                description: "ครอบคลุมเรื่องราวทางประวัติศาสตร์โลก การเดินทาง ภูมิศาสตร์ และชีวประวัติบุคคลสำคัญ เป็นหมวดที่ให้ความรู้เกี่ยวกับสถานที่ เวลา และผู้คนต่างๆ ทั่วโลก.",
+                divisions: [
+                    { code: "900", name: "ประวัติศาสตร์และภูมิศาสตร์" },
+                    { code: "910", name: "ภูมิศาสตร์และการท่องเที่ยว" },
+                    { code: "920", name: "ชีวประวัติและพงศาวดาร (Biography)" },
+                    { code: "930", name: "ประวัติศาสตร์ยุคโบราณ" },
+                    { code: "940", name: "ประวัติศาสตร์ยุโรป" },
+                    { code: "950", name: "ประวัติศาสตร์เอเชีย (รวมถึงประวัติศาสตร์ไทย)" },
+                    { code: "960", name: "ประวัติศาสตร์แอฟริกา" },
+                    { code: "970", name: "ประวัติศาสตร์อเมริกาเหนือ" },
+                    { code: "980", name: "ประวัติศาสตร์อเมริกาใต้" },
+                    { code: "990", name: "ประวัติศาสตร์ส่วนอื่นๆ ของโลก (เช่น โอเชียเนีย, ขั้วโลก)" }
+                ]
+            }
+        ];
+        
+        // --- Monthly Borrowing Stats Data (Line Chart, updated to 12 months) ---
+        const ddcColorMap = {
+            "000": "#64748b", "100": "#F87171", "200": "#FB923C", "300": "#FACC15", 
+            "400": "#A3E635", "500": "#4ADE80", "600": "#2DD4BF", "700": "#38BDF8", 
+            "800": "#818CF8", "900": "#C084FC"
+        };
+
+        const ddcMonthlyStats = {
+            months: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'],
+            datasets: [
+                // Data for 12 months (simulated borrowing counts)
+                { code: "000", label: "000 คอมพิวเตอร์", data: [800, 750, 900, 850, 1000, 950, 1100, 1050, 1150, 1200, 1180, 1300] },
+                { code: "100", label: "100 ปรัชญา", data: [500, 520, 600, 550, 650, 620, 680, 700, 650, 750, 780, 800] },
+                { code: "200", label: "200 ศาสนา", data: [450, 480, 500, 490, 550, 530, 580, 600, 570, 620, 640, 660] },
+                { code: "300", label: "300 สังคมศาสตร์", data: [1200, 1300, 1500, 1450, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300] },
+                { code: "400", label: "400 ภาษาศาสตร์", data: [300, 320, 350, 340, 380, 400, 420, 450, 430, 480, 500, 520] },
+                { code: "500", label: "500 วิทยาศาสตร์", data: [900, 880, 1000, 950, 1100, 1050, 1200, 1150, 1250, 1300, 1350, 1400] },
+                { code: "600", label: "600 วิทยาศาสตร์ประยุกต์", data: [1500, 1600, 1750, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500] },
+                { code: "700", label: "700 ศิลปะ", data: [700, 720, 800, 780, 850, 900, 950, 1000, 980, 1050, 1100, 1150] },
+                { code: "800", label: "800 วรรณคดี", data: [2000, 1950, 2200, 2100, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3100] },
+                { code: "900", label: "900 ประวัติศาสตร์", data: [600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1150] },
+            ].map(d => ({
+                ...d,
+                borderColor: ddcColorMap[d.code],
+                backgroundColor: ddcColorMap[d.code] + '40',
+                borderWidth: 3,
+                pointRadius: 3, // Default point size
+                tension: 0.4,
+                fill: false,
+                hidden: true,
+            }))
+        };
+
+
+        // --- State Management ---
+        let currentFilter = '';
+        let activeCategoryIndex = -1; // -1 means all
+        let currentStatsFilterCode = null; // New state for stats filtering (e.g., "100" or null for All)
+
+        // --- DOM Elements ---
+        const contentGrid = document.getElementById('content-grid');
+        const searchInput = document.getElementById('searchInput');
+        const categoryTitle = document.getElementById('category-title');
+        const categoryDesc = document.getElementById('category-desc');
+        const resetBtn = document.getElementById('resetBtn');
+        const chartCaption = document.getElementById('chart-caption');
+        
+        // --- View Elements (New) ---
+        const ddcExplorerView = document.getElementById('ddcExplorerView');
+        const statsView = document.getElementById('statsView');
+        const policyView = document.getElementById('policyView'); // NEW
+        const statsNavBtn = document.getElementById('statsNavBtn');
+        const policyNavBtn = document.getElementById('policyNavBtn'); // NEW
+        const backToDdcBtn = document.getElementById('backToDdcBtn');
+        const backToDdcPolicyBtn = document.getElementById('backToDdcPolicyBtn'); // NEW
+        const statsFilterGrid = document.getElementById('statsFilterGrid');
+        const statsChartTitleEl = document.getElementById('statsChartTitle');
+        
+        // --- Initialization ---
+        function init() {
+            renderChart();
+            renderCards();
+            setupEventListeners();
+            // Set default view
+            switchView('ddc');
+            chartCaption.textContent = 'แสดงหมวดหมู่ทั้งหมด 10 หมวดหลัก';
+        }
+
+        // --- View Switching Logic ---
+        function switchView(viewName, filterCode = null) {
+            // Hide all views first
+            ddcExplorerView.classList.add('hidden');
+            statsView.classList.add('hidden');
+            policyView.classList.add('hidden'); // NEW
+
+            // Manage Search Input visibility
+            const isMainView = viewName === 'ddc';
+            if (isMainView) {
+                searchInput.classList.remove('hidden');
+            } else {
+                searchInput.classList.add('hidden');
+            }
+
+            if (viewName === 'ddc') {
+                ddcExplorerView.classList.remove('hidden');
+                if (statsChart) {
+                    statsChart.destroy();
+                    statsChart = null;
+                }
+            } else if (viewName === 'stats') {
+                statsView.classList.remove('hidden');
+                // Set and render the new filter state
+                currentStatsFilterCode = filterCode;
+                renderStatsFilters(); 
+                renderStatsChart(currentStatsFilterCode);
+                
+                window.scrollTo(0, 0); 
+            } else if (viewName === 'policy') { // NEW: Handle Policy View
+                policyView.classList.remove('hidden');
+                window.scrollTo(0, 0); 
+            }
+        }
+        
+        // --- Card Click Handler ---
+        function handleCardClick(itemCode) {
+            // Find the main DDC class (e.g., 100 for 110)
+            const mainDdcCode = itemCode.slice(0, 1) + '00';
+            
+            // Switch to stats view and pass the main class code to filter the graph
+            switchView('stats', mainDdcCode); 
+        }
+
+        // --- Render DDC Cards (Explorer View) ---
+        function renderCards() {
+            contentGrid.innerHTML = '';
+            
+            let dataToRender = [];
+
+            if (activeCategoryIndex !== -1) {
+                const cat = ddcData[activeCategoryIndex];
+                dataToRender = cat.divisions.map(div => ({...div, color: cat.color, mainTitle: cat.title}));
+            } else {
+                ddcData.forEach(cat => {
+                    cat.divisions.forEach(div => {
+                        dataToRender.push({...div, color: cat.color, mainTitle: cat.title});
+                    });
+                });
+            }
+
+            if (currentFilter) {
+                const lowerFilter = currentFilter.toLowerCase();
+                dataToRender = dataToRender.filter(item => 
+                    item.code.includes(lowerFilter) || 
+                    item.name.toLowerCase().includes(lowerFilter) ||
+                    item.mainTitle.toLowerCase().includes(lowerFilter)
+                );
+            }
+
+            if (dataToRender.length === 0) {
+                contentGrid.innerHTML = `
+                    <div class="col-span-1 sm:col-span-2 text-center py-12 text-slate-400">
+                        ไม่พบข้อมูลที่ตรงกับคำค้นหา
+                    </div>`;
+                return;
+            }
+
+            dataToRender.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'bg-white border-l-4 rounded-r-lg p-4 shadow-sm border-slate-200 hover:bg-slate-50 transition-all card-hover cursor-pointer flex flex-col justify-between';
+                card.style.borderLeftColor = item.color;
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <span class="text-2xl font-bold font-mono text-slate-700">${item.code}</span>
+                        <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-500">${item.mainTitle}</span>
+                    </div>
+                    <p class="text-slate-800 font-medium">${item.name}</p>
+                `;
+
+                card.addEventListener('click', () => handleCardClick(item.code));
+
+                contentGrid.appendChild(card);
+            });
+        }
+
+        // --- DDC Chart (no change to logic) ---
+        let ddcChart;
+
+        function renderChart() {
+            const ctx = document.getElementById('ddcChart').getContext('2d');
+            
+            const labels = ddcData.map(d => `${d.code} ${d.title}`);
+            const bgColors = ddcData.map(d => d.color);
+            const dataValues = ddcData.map(() => 10); // Equal weight for visuals
+
+            ddcChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataValues,
+                        backgroundColor: bgColors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff',
+                        hoverOffset: 15
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(30, 41, 59, 0.9)',
+                            titleFont: { family: 'Noto Sans Thai', size: 14 },
+                            bodyFont: { family: 'Noto Sans Thai', size: 13 },
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    const index = context.dataIndex;
+                                    return ddcData[index].title;
+                                }
+                            }
+                        }
+                    },
+                    onClick: (evt, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            activeCategoryIndex = index;
+                            updateHeader();
+                            renderCards();
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateHeader() {
+            if (activeCategoryIndex !== -1) {
+                const cat = ddcData[activeCategoryIndex];
+                categoryTitle.textContent = `${cat.code} - ${cat.title}`;
+                categoryTitle.style.color = cat.color;
+                
+                let divisionCountMessage;
+                if (cat.code === "000") {
+                    divisionCountMessage = `แสดงรายการย่อย 1 รายการในหมวด ${cat.title} (ตามคำขอ)`;
+                } else {
+                    divisionCountMessage = `แสดงรายการย่อย ${cat.divisions.length} รายการในหมวด ${cat.title}`;
+                }
+
+                categoryDesc.textContent = divisionCountMessage;
+                resetBtn.classList.remove('hidden');
+                chartCaption.textContent = `คุณเลือก: ${cat.title}`;
+                chartCaption.style.color = cat.color;
+            } else {
+                categoryTitle.textContent = 'หมวดหมู่ทั้งหมด';
+                categoryTitle.style.color = '#1e293b';
+                categoryDesc.textContent = 'คลิกที่การ์ดเพื่อดูสถิติการยืมรายเดือน';
+                resetBtn.classList.add('hidden');
+                chartCaption.textContent = 'แสดงหมวดหมู่ทั้งหมด 10 หมวดหลัก';
+                chartCaption.style.color = '#475569';
+            }
+        }
+        
+        // --- Stats Filter Button Logic (no change) ---
+        
+        function handleStatsFilterClick(filterCode) {
+            currentStatsFilterCode = filterCode;
+            renderStatsChart(currentStatsFilterCode);
+            updateStatsFilterButtons(currentStatsFilterCode);
+        }
+
+        function createFilterButton(code, title, color, filterCode) {
+            const mainDdcCode = filterCode === null ? 'All' : filterCode;
+            const btn = document.createElement('button');
+            btn.id = `filterBtn-${mainDdcCode}`;
+            // Use flex for better alignment
+            btn.className = 'active-filter-btn w-full py-3 px-3 rounded-xl text-sm font-semibold transition-all text-left flex items-center shadow-md';
+            
+            btn.innerHTML = `
+                <span class="font-mono text-xl font-bold mr-3" style="color:${color};">${code !== 'All' ? code : '000'}</span>
+                <span class="text-slate-700 text-sm">${title}</span>
+            `;
+
+            btn.addEventListener('click', () => handleStatsFilterClick(filterCode));
+            return btn;
+        }
+
+        function updateStatsFilterButtons(selectedCode) {
+            const buttons = document.querySelectorAll('.active-filter-btn');
+            
+            buttons.forEach(btn => {
+                // Determine the filter code represented by the button (null for 'All')
+                const btnIdPart = btn.id.split('-')[1];
+                const btnFilterCode = btnIdPart === 'All' ? null : btnIdPart;
+                const originalColor = ddcColorMap[btnFilterCode] || '#1e293b'; // Fallback for 'All'
+                
+                const codeSpan = btn.querySelector('span:first-child');
+                const titleSpan = btn.querySelector('span:last-child');
+                
+                // Reset styles
+                btn.style.backgroundColor = 'white';
+                titleSpan.classList.remove('text-white');
+                titleSpan.classList.add('text-slate-700');
+                btn.classList.remove('selected-filter');
+                btn.style.borderColor = 'white'; // Reset border
+
+                if (btnFilterCode === selectedCode) {
+                    // Apply selected styles
+                    btn.classList.add('selected-filter');
+                    btn.style.backgroundColor = originalColor; // Use DDC color as background
+                    codeSpan.style.color = 'white'; 
+                    titleSpan.classList.add('text-white');
+                    titleSpan.classList.remove('text-slate-700');
+                } else {
+                    // Apply default styles
+                    codeSpan.style.color = originalColor; 
+                }
+            });
+        }
+        
+        function renderStatsFilters() {
+            statsFilterGrid.innerHTML = ''; // Clear previous buttons
+            
+            // 1. Add 'All' button (FilterCode: null)
+            const allBtn = createFilterButton('000-900', 'ภาพรวมทั้งหมด', '#1e293b', null);
+            statsFilterGrid.appendChild(allBtn);
+
+            // 2. Add 10 DDC Main Class buttons (FilterCode: "000", "100", etc.)
+            ddcData.forEach(cat => {
+                const btn = createFilterButton(cat.code, cat.title, cat.color, cat.code);
+                statsFilterGrid.appendChild(btn);
+            });
+            
+            // Set initial selection state
+            updateStatsFilterButtons(currentStatsFilterCode);
+        }
+
+        // --- Stats Chart.js Configuration (Line Chart) (no change) ---
+        let statsChart;
+
+        function renderStatsChart(filterCode = null) {
+            if (statsChart) {
+                statsChart.destroy(); 
+            }
+            
+            const ctx = document.getElementById('statsChart').getContext('2d');
+            
+            const mainCategory = ddcData.find(d => d.code === filterCode);
+            
+            let displayTitle = 'ภาพรวมสถิติการยืม 12 เดือน';
+            if (mainCategory) {
+                displayTitle = `สถิติการยืมรายเดือน: ${mainCategory.code} ${mainCategory.title}`;
+            }
+            statsChartTitleEl.textContent = displayTitle;
+
+
+            const chartDatasets = ddcMonthlyStats.datasets.map(d => {
+                // Determine visibility based on filterCode
+                const isFiltered = filterCode === null || d.code === filterCode;
+                
+                return {
+                    label: d.label,
+                    data: d.data,
+                    borderColor: d.borderColor,
+                    backgroundColor: d.backgroundColor,
+                    borderWidth: isFiltered ? 5 : 2, // Highlight thickness
+                    pointRadius: isFiltered ? 6 : 3, // Highlight point size
+                    pointBackgroundColor: isFiltered ? d.borderColor : '#ffffff',
+                    pointBorderColor: isFiltered ? '#ffffff' : d.borderColor,
+                    tension: 0.4,
+                    fill: false,
+                    // Line opacity: full for filtered, reduced for others when a filter is applied
+                    borderDash: isFiltered || filterCode === null ? [] : [5, 5], 
+                    hidden: filterCode !== null && d.code !== filterCode, 
+                };
+            });
+
+            statsChart = new Chart(ctx, {
+                type: 'line', // Changed to line chart
+                data: {
+                    labels: ddcMonthlyStats.months,
+                    datasets: chartDatasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'เดือน',
+                                font: { family: 'Noto Sans Thai', weight: 'bold' }
+                            },
+                            grid: {
+                                display: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            min: 0, 
+                            title: {
+                                display: true,
+                                text: 'จำนวนการยืม (เล่ม)',
+                                font: { family: 'Noto Sans Thai', weight: 'bold' }
+                            },
+                            ticks: {
+                                callback: function(value) {
+                                    return value.toLocaleString(); // Format number with comma
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    family: 'Noto Sans Thai'
+                                },
+                                boxWidth: 20
+                            }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(30, 41, 59, 0.9)',
+                            titleFont: { family: 'Noto Sans Thai', size: 14 },
+                            bodyFont: { family: 'Noto Sans Thai', size: 13 },
+                            padding: 12,
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.dataset.label || '';
+                                    if (label) {
+                                        return `${label}: ${context.parsed.y.toLocaleString()} เล่ม`;
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // --- Event Listeners ---
+        function setupEventListeners() {
+            searchInput.addEventListener('input', (e) => {
+                currentFilter = e.target.value;
+                renderCards();
+            });
+
+            resetBtn.addEventListener('click', () => {
+                activeCategoryIndex = -1;
+                currentFilter = '';
+                searchInput.value = '';
+                
+                if (ddcChart) {
+                    ddcChart.setActiveElements([]);
+                    ddcChart.update();
+                }
+
+                updateHeader();
+                renderCards();
+            });
+            
+            // NEW: Policy Nav Listener
+            policyNavBtn.addEventListener('click', () => {
+                switchView('policy');
+            });
+            backToDdcPolicyBtn.addEventListener('click', () => {
+                switchView('ddc');
+            });
+
+            // Existing: Stats Nav Listeners
+            statsNavBtn.addEventListener('click', () => {
+                // Navigate to stats view and show all (null filter)
+                switchView('stats', null); 
+            });
+
+            backToDdcBtn.addEventListener('click', () => {
+                switchView('ddc');
+            });
+        }
+
+        // Start App
+        init();
+
+    </script>
+</body>
+</html>
