@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบหมวดหมู่ห้องสมุด DDC (000-900)</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js is still needed for the Stats View (Line Chart), but DDC Doughnut Chart logic is removed -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet">
 
@@ -64,6 +65,29 @@
                 height: 400px; 
             }
         }
+        
+        /* New styling for the DDC Tree List */
+        .ddc-tree-item {
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0; /* Slate 200 */
+            transition: all 0.2s;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+        }
+
+        .ddc-tree-item:hover {
+            background-color: #f1f5f9; /* Slate 100 */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+
+        .ddc-tree-item.active {
+            background-color: #e2e8f0; /* Slate 200 */
+            border-color: #94a3b8; /* Slate 400 */
+            font-weight: 700;
+        }
+
     </style>
 </head>
 <body class="flex flex-col min-h-screen">
@@ -116,28 +140,28 @@
                     <!-- UPDATED: Replaced the DDC introduction with the Library's name as the subject -->
                     **ห้องสมุดองค์การบริหารส่วนจังหวัดพิษณุโลก** ได้ใช้ระบบทศนิยมดิวอี้ (DDC) ในการแบ่งสรรพวิชาออกเป็นหมวดหมู่หลัก เพื่อให้ง่ายต่อการค้นหาและจัดเก็บ 
                     แอปพลิเคชันนี้ออกแบบมาให้คุณสำรวจหมวดหมู่ตั้งแต่ <strong>000 (ความรู้ทั่วไป)</strong> ถึง <strong>900 (ประวัติศาสตร์)</strong> 
-                    ผ่านแผนภาพแบบโต้ตอบและการ์ดข้อมูลที่เข้าใจง่าย ลองคลิกที่วงล้อด้านล่าง หรือคลิกที่การ์ดหมวดหมู่ย่อยทางด้านขวาเพื่อเริ่มสำรวจสถิติ
+                    ผ่านโครงสร้างรายการแบบโต้ตอบและการ์ดข้อมูลที่เข้าใจง่าย ลองคลิกที่รายการหมวดหมู่ด้านซ้าย เพื่อเริ่มสำรวจสถิติ
                 </p>
             </section>
 
             <!-- Dashboard Grid -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
                 
-                <!-- Visualization Column (Interactive Wheel) -->
-                <div class="lg:col-span-5 flex flex-col items-center bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <!-- Visualization Column (Interactive Tree List - REPLACING CHART) -->
+                <div class="lg:col-span-5 flex flex-col bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <div class="text-center mb-4">
-                        <h3 class="text-xl font-bold text-slate-700">วงล้อหมวดหมู่หลัก (Main Classes)</h3>
-                        <p class="text-sm text-slate-500">คลิกที่สีในวงล้อเพื่อดูรายละเอียดหมวดหมู่ย่อย</p>
+                        <h3 class="text-xl font-bold text-slate-800">โครงสร้างหมวดหมู่หลัก DDC</h3>
+                        <p class="text-sm text-slate-500">คลิกที่รายการเพื่อดูหมวดหมู่ย่อยทางด้านขวา</p>
                     </div>
                     
-                    <div class="w-full flex justify-center items-center flex-grow">
-                        <!-- Chart Container adhering to strict styling requirements -->
-                        <div class="chart-container">
-                            <canvas id="ddcChart"></canvas>
+                    <div class="w-full flex-grow overflow-y-auto max-h-[600px] pr-2">
+                        <!-- New container for the list -->
+                        <div id="ddcTreeList" class="space-y-3">
+                            <!-- JS will populate the tree list here -->
                         </div>
                     </div>
 
-                    <!-- Stats / Legend substitute -->
+                    <!-- Caption/Selected Item Indicator -->
                     <div id="chart-caption" class="mt-4 text-center text-slate-600 font-medium bg-slate-50 px-4 py-2 rounded-lg w-full">
                         แสดงหมวดหมู่ทั้งหมด 10 หมวดหลัก
                     </div>
@@ -148,7 +172,7 @@
                     <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
                         <div>
                             <h3 id="category-title" class="text-2xl font-bold text-slate-800">หมวดหมู่ทั้งหมด</h3>
-                            <p id="category-desc" class="text-sm text-slate-500">คลิกที่การ์ดเพื่อดูสถิติการยืมรายเดือน</p>
+                            <p id="category-desc" class="text-sm text-slate-500">คลิกที่การ์ดเพื่อดูรายละเอียดเพิ่มเติม</p>
                         </div>
                         <button id="resetBtn" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-semibold transition-colors hidden">
                             แสดงทั้งหมด
@@ -177,7 +201,7 @@
             </section>
         </div>
 
-        <!-- NEW: Policy View Container (Initially Hidden) -->
+        <!-- Policy View Container (Initially Hidden) -->
         <div id="policyView" class="hidden">
             <div class="bg-white p-8 rounded-2xl shadow-lg">
                 <h2 class="text-3xl font-bold text-indigo-800 mb-4">หลักการใช้ห้องสมุด</h2>
@@ -258,6 +282,36 @@
             <p class="mt-1">ระบบ DDC Explorer.</p>
         </div>
     </footer>
+    
+    <!-- Sub-Division Detail Modal (New Feature) -->
+    <div id="subDivisionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-[100] hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-xl w-full shadow-2xl transform transition-all overflow-hidden max-h-[90vh]">
+            <!-- Modal Header -->
+            <div class="bg-slate-800 p-5 flex justify-between items-center sticky top-0">
+                <h3 id="modalCodeTitle" class="text-3xl font-bold text-amber-300 font-mono"></h3>
+                <button id="closeModalBtn" class="text-slate-300 hover:text-white transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <!-- Modal Body -->
+            <div class="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-100px)]">
+                <p class="text-slate-500 text-sm italic" id="modalMainCategory"></p>
+                <h4 id="modalName" class="text-2xl font-semibold text-slate-800 border-b pb-2"></h4>
+                
+                <p class="text-lg font-medium text-slate-700">ขอบเขตเนื้อหาและคำอธิบาย:</p>
+                <p id="modalDetailContent" class="text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-lg border shadow-inner"></p>
+
+                <!-- Action Buttons -->
+                <div class="pt-4 flex justify-end space-x-3">
+                    <button id="viewStatsBtn" class="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold shadow-md">
+                        ดูสถิติการยืม (กราฟ)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- JavaScript Logic -->
     <script>
@@ -275,7 +329,7 @@
             {
                 code: "100",
                 title: "ปรัชญาและจิตวิทยา",
-                color: "#F87171", // Red
+                color: "#F87171", // Red (Color kept for Stats View only)
                 description: "หมวดหมู่นี้ครอบคลุมแนวคิดหลักเกี่ยวกับความเป็นจริง ความรู้ ค่านิยม และความคิดของมนุษย์ รวมถึงสาขาย่อยสำคัญ เช่น อภิปรัชญา ตรรกศาสตร์ และจิตวิทยาเชิงประยุกต์ เนื้อหาส่วนใหญ่มุ่งเน้นไปที่การทำความเข้าใจจิตใจและพฤติกรรมมนุษย์.",
                 divisions: [
                     { code: "100", name: "ปรัชญาและจิตวิทยา" },
@@ -436,7 +490,7 @@
             }
         ];
         
-        // --- Monthly Borrowing Stats Data (Line Chart, updated to 12 months) ---
+        // --- Monthly Borrowing Stats Data (Line Chart) ---
         const ddcColorMap = {
             "000": "#64748b", "100": "#F87171", "200": "#FB923C", "300": "#FACC15", 
             "400": "#A3E635", "500": "#4ADE80", "600": "#2DD4BF", "700": "#38BDF8", 
@@ -482,21 +536,31 @@
         const categoryDesc = document.getElementById('category-desc');
         const resetBtn = document.getElementById('resetBtn');
         const chartCaption = document.getElementById('chart-caption');
+        const ddcTreeList = document.getElementById('ddcTreeList'); // NEW DOM Element
         
-        // --- View Elements (New) ---
+        // --- Modal DOM Elements ---
+        const subDivisionModal = document.getElementById('subDivisionModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modalCodeTitle = document.getElementById('modalCodeTitle');
+        const modalName = document.getElementById('modalName');
+        const modalMainCategory = document.getElementById('modalMainCategory');
+        const modalDetailContent = document.getElementById('modalDetailContent');
+        const viewStatsBtn = document.getElementById('viewStatsBtn');
+        
+        // --- View Elements ---
         const ddcExplorerView = document.getElementById('ddcExplorerView');
         const statsView = document.getElementById('statsView');
-        const policyView = document.getElementById('policyView'); // NEW
+        const policyView = document.getElementById('policyView'); 
         const statsNavBtn = document.getElementById('statsNavBtn');
-        const policyNavBtn = document.getElementById('policyNavBtn'); // NEW
+        const policyNavBtn = document.getElementById('policyNavBtn');
         const backToDdcBtn = document.getElementById('backToDdcBtn');
-        const backToDdcPolicyBtn = document.getElementById('backToDdcPolicyBtn'); // NEW
+        const backToDdcPolicyBtn = document.getElementById('backToDdcPolicyBtn');
         const statsFilterGrid = document.getElementById('statsFilterGrid');
         const statsChartTitleEl = document.getElementById('statsChartTitle');
         
         // --- Initialization ---
         function init() {
-            renderChart();
+            renderTreeList(); // Replaced renderChart()
             renderCards();
             setupEventListeners();
             // Set default view
@@ -509,7 +573,7 @@
             // Hide all views first
             ddcExplorerView.classList.add('hidden');
             statsView.classList.add('hidden');
-            policyView.classList.add('hidden'); // NEW
+            policyView.classList.add('hidden');
 
             // Manage Search Input visibility
             const isMainView = viewName === 'ddc';
@@ -521,6 +585,7 @@
 
             if (viewName === 'ddc') {
                 ddcExplorerView.classList.remove('hidden');
+                // Destroy stats chart when leaving stats view
                 if (statsChart) {
                     statsChart.destroy();
                     statsChart = null;
@@ -533,19 +598,64 @@
                 renderStatsChart(currentStatsFilterCode);
                 
                 window.scrollTo(0, 0); 
-            } else if (viewName === 'policy') { // NEW: Handle Policy View
+            } else if (viewName === 'policy') {
                 policyView.classList.remove('hidden');
                 window.scrollTo(0, 0); 
             }
         }
         
-        // --- Card Click Handler ---
-        function handleCardClick(itemCode) {
-            // Find the main DDC class (e.g., 100 for 110)
-            const mainDdcCode = itemCode.slice(0, 1) + '00';
+        // --- Sub-Division Detail Logic ---
+        
+        function generateSubDivisionDetail(itemCode, itemName) {
+            // ฟังก์ชันจำลองรายละเอียดเพิ่มเติมสำหรับหมวดหมู่ย่อย
+            const mainCode = itemCode.slice(0, 1) + '00';
+            let detail = `**${itemName}** จัดอยู่ในหมวดหมู่หลัก ${mainCode} โดยมีขอบเขตเนื้อหาดังนี้: `;
+
+            if (mainCode === '100') {
+                detail += 'หมวดหมู่นี้มุ่งเน้นไปที่การศึกษาเชิงทฤษฎีและแนวคิดพื้นฐานเกี่ยวกับมนุษย์และจักรวาล. ครอบคลุมการศึกษาความรู้, การดำรงอยู่ (อภิปรัชญา), ตรรกะ, และประเด็นทางจิตวิทยา. เนื้อหาส่วนใหญ่มักเป็นงานวิเคราะห์ วิจารณ์ หรือการถกเถียงเชิงปรัชญา เพื่อทำความเข้าใจความเป็นไปของสิ่งต่างๆ';
+            } else if (mainCode === '800') {
+                detail += 'หมวดวรรณคดีรวบรวมงานเขียนสร้างสรรค์ทางด้านภาษาและสุนทรียศาสตร์ ทั้งบทกวี, บทละคร, นวนิยาย และเรียงความ. การจัดเก็บจะแบ่งตามภาษาที่ใช้เขียนเป็นหลัก (เช่น 820 ภาษาอังกฤษ, 895 ภาษาอื่นๆ/ไทย) เพื่อให้ง่ายต่อการค้นหางานประพันธ์เฉพาะชาติหรือภาษา.';
+            } else if (mainCode === '300') {
+                detail += 'เป็นศูนย์กลางของการศึกษามนุษย์ในบริบททางสังคมและวัฒนธรรม. หัวข้อสำคัญในหมวดนี้ ได้แก่ รัฐบาล, เศรษฐศาสตร์, กฎหมาย, การศึกษา, และปัญหาสังคม. หนังสือในหมวดนี้ให้ความรู้เกี่ยวกับการจัดระเบียบและการทำงานของชุมชนและประเทศ.';
+            } else if (mainCode === '500') {
+                detail += 'รวบรวมวิทยาศาสตร์ธรรมชาติทั้งหมด เช่น ฟิสิกส์, เคมี, ชีววิทยา, และคณิตศาสตร์. เน้นไปที่ทฤษฎีและการค้นพบทางวิทยาศาสตร์พื้นฐานที่มุ่งทำความเข้าใจปรากฏการณ์ในโลกและจักรวาลโดยไม่มีเป้าหมายเชิงประยุกต์โดยตรง.';
+            }
+            else {
+                detail += 'ข้อมูลเพิ่มเติมเกี่ยวกับหมวดหมู่นี้จะรวมถึงขอบเขตเนื้อหาหลัก, ตัวอย่างหัวข้อที่เกี่ยวข้อง, และความเชื่อมโยงกับหมวดหมู่หลักอื่นๆ ในระบบ DDC โดยมีวัตถุประสงค์เพื่อช่วยให้ผู้ใช้ห้องสมุดสามารถระบุตำแหน่งของหนังสือที่ต้องการได้แม่นยำยิ่งขึ้น.';
+            }
             
-            // Switch to stats view and pass the main class code to filter the graph
-            switchView('stats', mainDdcCode); 
+            return detail;
+        }
+
+        // --- Card Click Handler (UPDATED) ---
+        function handleCardClick(itemCode) {
+            // 1. Find the item and its main category data
+            let selectedItem = null;
+            let mainCategory = null;
+
+            for (const cat of ddcData) {
+                selectedItem = cat.divisions.find(div => div.code === itemCode);
+                if (selectedItem) {
+                    mainCategory = cat;
+                    break;
+                }
+            }
+
+            if (!selectedItem || !mainCategory) return; // Should not happen with valid data
+
+            // 2. Populate Modal Content
+            modalCodeTitle.textContent = selectedItem.code;
+            modalName.textContent = selectedItem.name;
+            modalMainCategory.textContent = `หมวดหมู่หลัก: ${mainCategory.code} ${mainCategory.title}`;
+            
+            // Generate/Set Placeholder Detail
+            modalDetailContent.textContent = generateSubDivisionDetail(selectedItem.code, selectedItem.name);
+            
+            // Store data for View Stats Button
+            viewStatsBtn.setAttribute('data-ddc-code', mainCategory.code);
+
+            // 3. Show Modal
+            subDivisionModal.classList.remove('hidden');
         }
 
         // --- Render DDC Cards (Explorer View) ---
@@ -584,6 +694,7 @@
 
             dataToRender.forEach(item => {
                 const card = document.createElement('div');
+                // Cards still use color border for visual segmentation of sub-classes
                 card.className = 'bg-white border-l-4 rounded-r-lg p-4 shadow-sm border-slate-200 hover:bg-slate-50 transition-all card-hover cursor-pointer flex flex-col justify-between';
                 card.style.borderLeftColor = item.color;
                 
@@ -600,58 +711,45 @@
                 contentGrid.appendChild(card);
             });
         }
+        
+        // --- NEW: Render DDC Tree List (Replacing Doughnut Chart) ---
+        function handleTreeItemClick(index) {
+            activeCategoryIndex = index;
+            updateHeader();
+            renderCards();
+            updateTreeListActiveState(index);
+        }
 
-        // --- DDC Chart (no change to logic) ---
-        let ddcChart;
+        function renderTreeList() {
+            ddcTreeList.innerHTML = '';
 
-        function renderChart() {
-            const ctx = document.getElementById('ddcChart').getContext('2d');
-            
-            const labels = ddcData.map(d => `${d.code} ${d.title}`);
-            const bgColors = ddcData.map(d => d.color);
-            const dataValues = ddcData.map(() => 10); // Equal weight for visuals
+            ddcData.forEach((cat, index) => {
+                const item = document.createElement('div');
+                item.className = 'ddc-tree-item';
+                item.setAttribute('data-index', index);
+                
+                // Content is non-colored, using Slate/Black text
+                item.innerHTML = `
+                    <div class="text-3xl font-mono font-bold mr-4 text-slate-700">${cat.code}</div>
+                    <div class="flex flex-col">
+                        <div class="font-semibold text-slate-800">${cat.title}</div>
+                        <div class="text-sm text-slate-500">${cat.description.substring(0, 60)}...</div>
+                    </div>
+                `;
+                
+                item.addEventListener('click', () => handleTreeItemClick(index));
+                ddcTreeList.appendChild(item);
+            });
 
-            ddcChart = new Chart(ctx, {
-                type: 'doughnut',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        data: dataValues,
-                        backgroundColor: bgColors,
-                        borderWidth: 2,
-                        borderColor: '#ffffff',
-                        hoverOffset: 15
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    cutout: '60%',
-                    plugins: {
-                        legend: {
-                            display: false
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(30, 41, 59, 0.9)',
-                            titleFont: { family: 'Noto Sans Thai', size: 14 },
-                            bodyFont: { family: 'Noto Sans Thai', size: 13 },
-                            padding: 12,
-                            callbacks: {
-                                label: function(context) {
-                                    const index = context.dataIndex;
-                                    return ddcData[index].title;
-                                }
-                            }
-                        }
-                    },
-                    onClick: (evt, elements) => {
-                        if (elements.length > 0) {
-                            const index = elements[0].index;
-                            activeCategoryIndex = index;
-                            updateHeader();
-                            renderCards();
-                        }
-                    }
+            // Set initial state
+            updateTreeListActiveState(activeCategoryIndex);
+        }
+
+        function updateTreeListActiveState(activeIndex) {
+            document.querySelectorAll('.ddc-tree-item').forEach(item => {
+                item.classList.remove('active');
+                if (parseInt(item.getAttribute('data-index')) === activeIndex) {
+                    item.classList.add('active');
                 }
             });
         }
@@ -660,7 +758,7 @@
             if (activeCategoryIndex !== -1) {
                 const cat = ddcData[activeCategoryIndex];
                 categoryTitle.textContent = `${cat.code} - ${cat.title}`;
-                categoryTitle.style.color = cat.color;
+                categoryTitle.style.color = '#1e293b'; // Force default text color
                 
                 let divisionCountMessage;
                 if (cat.code === "000") {
@@ -672,14 +770,15 @@
                 categoryDesc.textContent = divisionCountMessage;
                 resetBtn.classList.remove('hidden');
                 chartCaption.textContent = `คุณเลือก: ${cat.title}`;
-                chartCaption.style.color = cat.color;
+                chartCaption.style.color = '#475569'; // Force default caption color
             } else {
                 categoryTitle.textContent = 'หมวดหมู่ทั้งหมด';
                 categoryTitle.style.color = '#1e293b';
-                categoryDesc.textContent = 'คลิกที่การ์ดเพื่อดูสถิติการยืมรายเดือน';
+                categoryDesc.textContent = 'คลิกที่การ์ดเพื่อดูรายละเอียดเพิ่มเติม'; // UPDATED DESC
                 resetBtn.classList.add('hidden');
                 chartCaption.textContent = 'แสดงหมวดหมู่ทั้งหมด 10 หมวดหลัก';
                 chartCaption.style.color = '#475569';
+                updateTreeListActiveState(-1);
             }
         }
         
@@ -861,9 +960,35 @@
                 }
             });
         }
+        
+        // --- Modal Event Listeners (NEW) ---
+        function setupModalEventListeners() {
+            // Close modal by clicking the X button
+            closeModalBtn.addEventListener('click', () => {
+                subDivisionModal.classList.add('hidden');
+            });
+
+            // Close modal by clicking outside the content
+            subDivisionModal.addEventListener('click', (e) => {
+                if (e.target === subDivisionModal) {
+                    subDivisionModal.classList.add('hidden');
+                }
+            });
+            
+            // Link from modal to stats view
+            viewStatsBtn.addEventListener('click', (e) => {
+                const ddcCode = e.target.getAttribute('data-ddc-code');
+                subDivisionModal.classList.add('hidden'); // Hide modal first
+                if (ddcCode) {
+                    switchView('stats', ddcCode); // Switch to stats view, filtered by main DDC code
+                }
+            });
+        }
+
 
         // --- Event Listeners ---
         function setupEventListeners() {
+            // Setup general listeners
             searchInput.addEventListener('input', (e) => {
                 currentFilter = e.target.value;
                 renderCards();
@@ -874,16 +999,11 @@
                 currentFilter = '';
                 searchInput.value = '';
                 
-                if (ddcChart) {
-                    ddcChart.setActiveElements([]);
-                    ddcChart.update();
-                }
-
                 updateHeader();
                 renderCards();
             });
             
-            // NEW: Policy Nav Listener
+            // Policy Nav Listener
             policyNavBtn.addEventListener('click', () => {
                 switchView('policy');
             });
@@ -900,6 +1020,9 @@
             backToDdcBtn.addEventListener('click', () => {
                 switchView('ddc');
             });
+            
+            // Setup modal listeners
+            setupModalEventListeners();
         }
 
         // Start App
