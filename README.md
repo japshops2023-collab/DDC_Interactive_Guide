@@ -1,1032 +1,506 @@
-
+<!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ระบบหมวดหมู่ห้องสมุด DDC (000-900)</title>
+    <title>KHAI POWER - ยืนยันการเช่า</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Chart.js is still needed for the Stats View (Line Chart), but DDC Doughnut Chart logic is removed -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;600;700&display=swap" rel="stylesheet">
-
-    <!-- Chosen Palette: Warm Library (Neutral Cream Background, Deep Charcoal Text, Warm Amber/Terracotta Accents) -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600&family=Orbitron:wght@500;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Kanit', 'sans-serif'],
+                        mono: ['Orbitron', 'monospace'],
+                    },
+                    colors: {
+                        cyber: {
+                            dark: '#0f172a',
+                            panel: '#1e293b',
+                            accent: '#06b6d4', // Cyan
+                            glow: '#22d3ee',
+                            danger: '#ef4444',
+                            purple: '#a855f7',
+                            success: '#10b981',
+                            warning: '#eab308'
+                        }
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         body {
-            font-family: 'Noto Sans Thai', sans-serif;
-            background-color: #fdfbf7; /* Warm off-white */
-            color: #1e293b; /* Slate 800 */
+            background-color: #0b1120;
+            background-image: 
+                radial-gradient(circle at 50% 0%, #1e293b 0%, transparent 70%),
+                linear-gradient(rgba(6, 182, 212, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(6, 182, 212, 0.05) 1px, transparent 1px);
+            background-size: 100% 100%, 40px 40px, 40px 40px;
         }
-        .chart-container {
-            position: relative;
-            width: 100%;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            height: 350px;
-            max-height: 400px;
+        .neon-text { text-shadow: 0 0 10px rgba(6, 182, 212, 0.7); }
+        .neon-border { box-shadow: 0 0 15px rgba(6, 182, 212, 0.2); }
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(6, 182, 212, 0.3);
         }
-        @media (min-width: 768px) {
-            .chart-container {
-                height: 400px;
-            }
+        /* Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
         }
-        .card-hover:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-        }
-        
-        /* Custom styles for active filter buttons in stats view */
-        .active-filter-btn {
-            background-color: white;
-            transition: all 0.2s ease;
-            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-        }
-        .active-filter-btn:hover {
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.06);
-            transform: translateY(-1px);
-        }
-        
-        /* Class applied when a filter button is active/selected */
-        .selected-filter {
-            color: white !important;
-            font-weight: 700;
-            border-bottom: 4px solid white;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-            transform: translateY(-1px);
-        }
-        
-        /* Ensure chart container for stats has enough space */
-        #statsChartContainer {
-            width: 100%; 
-            height: 550px; /* Sufficient height for large screen chart */
-        }
-        @media (max-width: 1024px) {
-             #statsChartContainer {
-                height: 400px; 
-            }
-        }
-        
-        /* New styling for the DDC Tree List */
-        .ddc-tree-item {
-            padding: 12px;
-            border-radius: 8px;
-            border: 1px solid #e2e8f0; /* Slate 200 */
-            transition: all 0.2s;
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #22d3ee;
             cursor: pointer;
-            display: flex;
-            align-items: center;
+            margin-top: -8px;
+            box-shadow: 0 0 10px #22d3ee;
+            position: relative;
+            z-index: 20;
         }
-
-        .ddc-tree-item:hover {
-            background-color: #f1f5f9; /* Slate 100 */
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 4px;
+            cursor: pointer;
+            background: #334155;
+            border-radius: 2px;
         }
-
-        .ddc-tree-item.active {
-            background-color: #e2e8f0; /* Slate 200 */
-            border-color: #94a3b8; /* Slate 400 */
-            font-weight: 700;
+        /* Green thumb for target */
+        .target-slider::-webkit-slider-thumb {
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
         }
-
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
     </style>
 </head>
-<body class="flex flex-col min-h-screen">
+<body class="text-slate-200 min-h-screen flex flex-col">
 
     <!-- Header -->
-    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row justify-between items-center">
-            <div class="flex items-center space-x-3 mb-4 md:mb-0">
-                <!-- LOGO Replacement with URL and Placeholder Fallback -->
-                <img src="https://img2.pic.in.th/pic/596946871_1250467433784861_5424304838626834382_n.jpg" 
-                     alt="โลโก้ระบบ DDC" 
-                     class="w-12 h-12 object-contain rounded-lg shadow-md"
-                     onerror="this.onerror=null; this.src='https://placehold.co/48x48/64748b/ffffff?text=DDC';"
-                >
-                <div>
-                    <!-- UPDATED: Main title with organization name -->
-                    <h1 class="text-xl md:text-2xl font-bold">ห้องสมุดองค์การบริหารส่วนจังหวัดพิษณุโลก</h1>
-                    <p class="text-xs text-slate-400">ระบบหมวดหมู่ DDC Explorer</p>
-                </div>
+    <header class="border-b border-cyan-900/50 bg-slate-900/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 bg-cyan-400 rounded-full animate-pulse shadow-[0_0_10px_#22d3ee]"></div>
+                <h1 class="font-mono text-2xl font-bold tracking-wider text-white">
+                    KHAI <span class="text-cyan-400">POWER</span>
+                </h1>
             </div>
-            
-            <!-- Navigation/Utility Group - เพิ่มปุ่ม "หลักการใช้ห้องสมุด" -->
-            <div class="flex items-center space-x-4 w-full md:w-auto mt-4 md:mt-0">
-                <!-- NEW: Library Policy Button (Primary color for general info) -->
-                <button id="policyNavBtn" class="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm font-semibold shadow-md w-full md:w-auto">
-                    หลักการใช้ห้องสมุด
-                </button>
-                <!-- Existing Statistics Navigation Button (Amber for stats/data) -->
-                <button id="statsNavBtn" class="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors text-sm font-semibold shadow-md w-full md:w-auto">
-                    สถิติการยืมหนังสือ
-                </button>
-                <div class="w-full md:w-64">
-                    <input type="text" id="searchInput" placeholder="ค้นหาหมวดหมู่ หรือ ชื่อเรื่อง... (เช่น คอมพิวเตอร์, 000)" 
-                        class="w-full px-4 py-2 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 transition-all shadow-inner bg-slate-100">
-                </div>
+            <div class="font-mono text-xs text-cyan-500 border border-cyan-800 px-3 py-1 rounded bg-cyan-950/30">
+                SYSTEM: ONLINE
             </div>
         </div>
     </header>
 
     <!-- Main Content -->
-    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
-
-        <!-- DDC Explorer View Container (Default View) -->
-        <div id="ddcExplorerView">
-            <!-- Intro Section -->
-            <section class="mb-12 text-center max-w-3xl mx-auto">
-                <!-- UPDATED: Welcome message -->
-                <h2 class="text-3xl font-bold text-slate-800 mb-4">ยินดีต้อนรับสู่ห้องสมุดองค์การบริหารส่วนจังหวัดพิษณุโลก</h2>
-                <p class="text-lg text-slate-600 leading-relaxed">
-                    <!-- UPDATED: Replaced the DDC introduction with the Library's name as the subject -->
-                    **ห้องสมุดองค์การบริหารส่วนจังหวัดพิษณุโลก** ได้ใช้ระบบทศนิยมดิวอี้ (DDC) ในการแบ่งสรรพวิชาออกเป็นหมวดหมู่หลัก เพื่อให้ง่ายต่อการค้นหาและจัดเก็บ 
-                    แอปพลิเคชันนี้ออกแบบมาให้คุณสำรวจหมวดหมู่ตั้งแต่ <strong>000 (ความรู้ทั่วไป)</strong> ถึง <strong>900 (ประวัติศาสตร์)</strong> 
-                    ผ่านโครงสร้างรายการแบบโต้ตอบและการ์ดข้อมูลที่เข้าใจง่าย ลองคลิกที่รายการหมวดหมู่ด้านซ้าย เพื่อเริ่มสำรวจสถิติ
-                </p>
-            </section>
-
-            <!-- Dashboard Grid -->
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
-                
-                <!-- Visualization Column (Interactive Tree List - REPLACING CHART) -->
-                <div class="lg:col-span-5 flex flex-col bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <div class="text-center mb-4">
-                        <h3 class="text-xl font-bold text-slate-800">โครงสร้างหมวดหมู่หลัก DDC</h3>
-                        <p class="text-sm text-slate-500">คลิกที่รายการเพื่อดูหมวดหมู่ย่อยทางด้านขวา</p>
-                    </div>
-                    
-                    <div class="w-full flex-grow overflow-y-auto max-h-[600px] pr-2">
-                        <!-- New container for the list -->
-                        <div id="ddcTreeList" class="space-y-3">
-                            <!-- JS will populate the tree list here -->
-                        </div>
-                    </div>
-
-                    <!-- Caption/Selected Item Indicator -->
-                    <div id="chart-caption" class="mt-4 text-center text-slate-600 font-medium bg-slate-50 px-4 py-2 rounded-lg w-full">
-                        แสดงหมวดหมู่ทั้งหมด 10 หมวดหลัก
-                    </div>
+    <main class="container mx-auto px-4 py-8 flex-grow relative z-10">
+        
+        <div class="text-center mb-10">
+            <h2 class="text-3xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-500 neon-text">
+                เลือกหน่วยพลังงาน
+            </h2>
+            <p class="text-slate-400 mb-6 font-light">ค้นหารุ่นมือถือของคุณเพื่อเริ่มใช้งาน</p>
+            
+            <div class="relative max-w-xl mx-auto group">
+                <input type="text" id="searchInput" 
+                    placeholder="ค้นหารุ่น (เช่น iPhone, Samsung, Vivo, Honor)..." 
+                    class="w-full bg-slate-800/50 border border-cyan-800/50 text-cyan-100 pl-12 pr-4 py-3 rounded-lg focus:outline-none focus:border-cyan-500 focus:shadow-[0_0_15px_rgba(6,182,212,0.3)] transition-all font-mono placeholder-slate-600">
+                <div class="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-cyan-600"></i>
                 </div>
-
-                <!-- Details Column (Dynamic List) -->
-                <div class="lg:col-span-7 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col">
-                    <div class="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
-                        <div>
-                            <h3 id="category-title" class="text-2xl font-bold text-slate-800">หมวดหมู่ทั้งหมด</h3>
-                            <p id="category-desc" class="text-sm text-slate-500">คลิกที่การ์ดเพื่อดูรายละเอียดเพิ่มเติม</p>
-                        </div>
-                        <button id="resetBtn" class="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 rounded-lg text-sm font-semibold transition-colors hidden">
-                            แสดงทั้งหมด
-                        </button>
-                    </div>
-
-                    <!-- Scrollable Content Area -->
-                    <div id="content-grid" class="grid grid-cols-1 sm:grid-cols-2 gap-4 overflow-y-auto pr-2 max-h-[600px]">
-                        <!-- JS will populate cards here -->
-                    </div>
-                </div>
-            </div>
-
-            <!-- Quick Reference Section -->
-            <section class="bg-amber-50 rounded-2xl p-8 border border-amber-100">
-                <div class="flex items-start space-x-4">
-                    <div class="text-4xl text-amber-600">💡</div>
-                    <div>
-                        <h3 class="text-xl font-bold text-amber-900 mb-2">รู้หรือไม่?</h3>
-                        <p class="text-amber-800">
-                            ตัวเลขหลักร้อย (เช่น 100, 200) บอกหมวดใหญ่, ตัวเลขหลักสิบ (เช่น 110, 120) บอกหมวดแยกย่อย 
-                            ระบบนี้ช่วยให้ห้องสมุดทั่วโลกจัดเรียงหนังสือในลักษณะเดียวกัน ทำให้คุณหาหนังสือเล่มเดิมเจอไม่ว่าจะอยู่ที่ไหน
-                        </p>
-                    </div>
-                </div>
-            </section>
-        </div>
-
-        <!-- Policy View Container (Initially Hidden) -->
-        <div id="policyView" class="hidden">
-            <div class="bg-white p-8 rounded-2xl shadow-lg">
-                <h2 class="text-3xl font-bold text-indigo-800 mb-4">หลักการใช้ห้องสมุด</h2>
-                <p class="text-xl text-slate-600 mb-6">
-                    หน้านี้แสดงกฎระเบียบและแนวทางการปฏิบัติที่สำคัญสำหรับการใช้บริการต่างๆ ภายในห้องสมุดองค์การบริหารส่วนจังหวัดพิษณุโลก:
-                </p>
-                
-                <ul class="list-disc list-inside space-y-3 text-slate-700 ml-4 p-4 border rounded-xl bg-gray-50">
-                    <li class="font-semibold text-lg text-indigo-700">ระเบียบการยืม-คืน</li>
-                    <ul class="list-circle list-inside ml-6 space-y-2">
-                        <li><strong>การยืม:</strong> สมาชิกสามารถยืมหนังสือได้ไม่เกิน 5 เล่มต่อครั้ง ระยะเวลาการยืม 7 วัน</li>
-                        <li><strong>การคืน:</strong> กรุณาคืนหนังสือตามกำหนด หากเกินกำหนดจะมีค่าปรับ</li>
-                    </ul>
-                    
-                    <li class="font-semibold text-lg text-indigo-700 mt-4">ค่าปรับและค่าชดเชย</li>
-                    <ul class="list-circle list-inside ml-6 space-y-2">
-                        <li><strong>ค่าปรับ:</strong> 5 บาท ต่อเล่ม ต่อวัน</li>
-                        <li><strong>หนังสือสูญหาย/เสียหาย:</strong> ผู้ยืมต้องชดใช้เป็นหนังสือฉบับใหม่ หรือชำระค่าหนังสือตามราคาจริง พร้อมค่าดำเนินการ (ถ้ามี)</li>
-                    </ul>
-
-                    <li class="font-semibold text-lg text-indigo-700 mt-4">มารยาทในการใช้ห้องสมุด</li>
-                    <ul class="list-circle list-inside ml-6 space-y-2">
-                        <li>กรุณาสำรวมและรักษาความสงบ ไม่ส่งเสียงดัง</li>
-                        <li>ห้ามนำอาหารหรือเครื่องดื่มเข้ามาในพื้นที่อ่านหนังสือ ยกเว้นน้ำดื่มบรรจุขวดมิดชิด</li>
-                    </ul>
-                </ul>
-
-                
-                <button id="backToDdcPolicyBtn" class="mt-8 px-6 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors font-semibold shadow-md self-start">
-                    &larr; กลับไปที่ DDC Explorer
-                </button>
             </div>
         </div>
 
+        <div id="phoneGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Grid Items -->
+        </div>
 
-        <!-- Existing: Statistics View Container (Initially Hidden) -->
-        <div id="statsView" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-8">
-            
-            <!-- Left Column: Filter/Selector (Like Main Classes List) -->
-            <div class="lg:col-span-3 bg-white p-6 rounded-2xl shadow-md border border-slate-100 h-fit">
-                <h3 class="text-2xl font-bold text-slate-800 mb-4 border-b pb-2">เลือกหมวดหมู่หลัก DDC</h3>
-                <div id="statsFilterGrid" class="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-1">
-                    <!-- Filter buttons will be generated here -->
-                </div>
-            </div>
-            
-            <!-- Right Column: Chart Area -->
-            <div class="lg:col-span-9 bg-white p-6 rounded-2xl shadow-lg border border-slate-100 flex flex-col">
-                <h2 class="text-3xl font-bold text-slate-800 mb-2">สถิติการยืมหนังสือรายเดือน</h2>
-                
-                <!-- Dynamic Title -->
-                <h3 id="statsChartTitle" class="text-xl font-semibold text-slate-700 mt-2 mb-4">ภาพรวมสถิติการยืม 12 เดือน</h3>
-                
-                <!-- UPDATED DESCRIPTION -->
-                <p class="text-lg text-slate-600 mb-6">
-                    กราฟเส้นนี้แสดงแนวโน้มจำนวนการยืมหนังสือในช่วง 12 เดือนที่ผ่านมา (ข้อมูลจำลอง). 
-                    คุณสามารถคลิกที่ปุ่มหมวดหมู่หลักด้านซ้ายเพื่อเน้นสถิติเฉพาะหมวดนั้นได้.
-                </p>
-
-                <!-- Chart Container -->
-                <div id="statsChartContainer" class="w-full flex-grow">
-                    <canvas id="statsChart"></canvas>
-                </div>
-                
-                <button id="backToDdcBtn" class="mt-8 px-6 py-3 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition-colors font-semibold shadow-md self-start">
-                    &larr; กลับไปที่ DDC Explorer
-                </button>
-            </div>
+        <div id="noResults" class="hidden flex flex-col items-center justify-center py-20 opacity-50">
+            <i class="fas fa-satellite-dish text-6xl text-slate-700 mb-4"></i>
+            <p class="font-mono text-slate-500">DATA NOT FOUND</p>
         </div>
 
     </main>
 
-    <!-- Footer -->
-    <footer class="bg-slate-800 text-slate-300 py-6 mt-auto">
-        <div class="max-w-7xl mx-auto px-4 text-center text-sm">
-            <!-- UPDATED: Footer text -->
-            <p>&copy; 2024 องค์การบริหารส่วนจังหวัดพิษณุโลก</p>
-            <p class="mt-1">ระบบ DDC Explorer.</p>
-        </div>
-    </footer>
-    
-    <!-- Sub-Division Detail Modal (New Feature) -->
-    <div id="subDivisionModal" class="fixed inset-0 bg-gray-900 bg-opacity-75 z-[100] hidden flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl max-w-xl w-full shadow-2xl transform transition-all overflow-hidden max-h-[90vh]">
-            <!-- Modal Header -->
-            <div class="bg-slate-800 p-5 flex justify-between items-center sticky top-0">
-                <h3 id="modalCodeTitle" class="text-3xl font-bold text-amber-300 font-mono"></h3>
-                <button id="closeModalBtn" class="text-slate-300 hover:text-white transition-colors">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-            <!-- Modal Body -->
-            <div class="p-6 space-y-4 overflow-y-auto max-h-[calc(90vh-100px)]">
-                <p class="text-slate-500 text-sm italic" id="modalMainCategory"></p>
-                <h4 id="modalName" class="text-2xl font-semibold text-slate-800 border-b pb-2"></h4>
+    <!-- Booking Modal -->
+    <div id="bookingModal" class="fixed inset-0 z-[100] hidden">
+        <!-- Backdrop -->
+        <div class="absolute inset-0 bg-slate-950/90 backdrop-blur-sm transition-opacity" onclick="closeModal()"></div>
+        
+        <!-- Modal Content -->
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-full max-w-lg px-4">
+            <div class="glass-panel bg-slate-900 border-cyan-500/50 rounded-2xl shadow-[0_0_50px_rgba(6,182,212,0.2)] overflow-hidden relative max-h-[90vh] overflow-y-auto">
                 
-                <p class="text-lg font-medium text-slate-700">ขอบเขตเนื้อหาและคำอธิบาย:</p>
-                <p id="modalDetailContent" class="text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-lg border shadow-inner"></p>
+                <!-- Header -->
+                <div class="p-6 border-b border-cyan-900/50 relative z-10 bg-gradient-to-r from-slate-900 to-slate-800">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-xs font-mono text-cyan-500 mb-1 block">SMART CALCULATION</span>
+                            <h3 id="modalModelName" class="text-2xl font-bold text-white tracking-wide">Model Name</h3>
+                            <div class="flex items-center gap-2 mt-1">
+                                <span id="modalBattery" class="text-sm text-slate-400 font-mono">Capacity</span>
+                                <span class="text-slate-600">|</span>
+                                <span id="modalSpeed" class="text-sm text-yellow-400 font-mono">Max 45W</span>
+                            </div>
+                        </div>
+                        <button onclick="closeModal()" class="text-slate-500 hover:text-white transition-colors">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                </div>
 
-                <!-- Action Buttons -->
-                <div class="pt-4 flex justify-end space-x-3">
-                    <button id="viewStatsBtn" class="px-5 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors font-semibold shadow-md">
-                        ดูสถิติการยืม (กราฟ)
+                <!-- Body -->
+                <div class="p-6 space-y-6 relative z-10">
+                    
+                    <!-- 1. Battery Percentage Inputs -->
+                    <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700">
+                        <label class="block text-sm text-slate-300 mb-4 font-mono">
+                            <i class="fas fa-battery-half mr-2 text-cyan-500"></i>BATTERY LEVEL
+                        </label>
+                        
+                        <!-- Start Level -->
+                        <div class="mb-4">
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-cyan-400">Current (มีอยู่)</span>
+                                <span class="font-mono text-white font-bold"><span id="startPctDisplay">10</span>%</span>
+                            </div>
+                            <input type="range" id="startPctInput" min="0" max="95" value="10" class="w-full" oninput="updateCalculation()">
+                        </div>
+
+                        <!-- Target Level -->
+                        <div>
+                            <div class="flex justify-between text-xs mb-1">
+                                <span class="text-green-400">Target (เป้าหมาย)</span>
+                                <span class="font-mono text-white font-bold"><span id="targetPctDisplay">100</span>%</span>
+                            </div>
+                            <input type="range" id="targetPctInput" min="5" max="100" value="100" class="w-full target-slider" oninput="updateCalculation()">
+                        </div>
+                    </div>
+
+                    <!-- 2. Cable Selection -->
+                    <div>
+                        <label class="block text-sm text-slate-300 mb-3 font-mono">
+                            <span><i class="fas fa-plug mr-2 text-yellow-500"></i>CABLE TYPE</span>
+                        </label>
+                        <div class="flex gap-3">
+                            <label class="cursor-pointer flex-1">
+                                <input type="radio" name="cable" value="standard" class="peer hidden" checked onchange="updateCalculation()">
+                                <div class="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center hover:border-yellow-500 peer-checked:border-yellow-500 peer-checked:bg-yellow-900/20 peer-checked:text-yellow-300 transition-all h-full">
+                                    <i class="fas fa-charging-station text-xl mb-1 block"></i>
+                                    <span class="text-xs font-bold">สายตู้ (ฟรี)</span>
+                                    <div class="text-[9px] text-yellow-400 mt-1">Limit 22.5W</div>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer flex-1">
+                                <input type="radio" name="cable" value="own" class="peer hidden" onchange="updateCalculation()">
+                                <div class="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center hover:border-cyan-500 peer-checked:border-cyan-500 peer-checked:bg-cyan-900/20 peer-checked:text-cyan-300 transition-all h-full">
+                                    <i class="fas fa-bolt text-xl mb-1 block"></i>
+                                    <span class="text-xs font-bold">สายตัวเอง</span>
+                                    <div class="text-[9px] text-cyan-400 mt-1">Max Speed</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- 3. Select Activity -->
+                    <div>
+                        <label class="block text-sm text-slate-300 mb-3 font-mono">
+                            <span><i class="fas fa-gamepad mr-2 text-purple-500"></i>CURRENT ACTIVITY</span>
+                        </label>
+                        <div class="grid grid-cols-3 gap-3">
+                            <label class="cursor-pointer">
+                                <input type="radio" name="activity" value="game" class="peer hidden" onchange="updateCalculation()">
+                                <div class="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center hover:border-purple-500 peer-checked:border-purple-500 peer-checked:bg-purple-900/20 peer-checked:text-purple-300 transition-all h-full relative overflow-hidden group">
+                                    <i class="fas fa-gamepad text-xl mb-1 block"></i>
+                                    <span class="text-xs font-bold">เล่นเกม</span>
+                                    <div class="text-[9px] text-purple-400 mt-1">ช้าลง 40%</div>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="activity" value="media" class="peer hidden" onchange="updateCalculation()">
+                                <div class="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center hover:border-blue-500 peer-checked:border-blue-500 peer-checked:bg-blue-900/20 peer-checked:text-blue-300 transition-all h-full relative overflow-hidden group">
+                                    <i class="fas fa-play-circle text-xl mb-1 block"></i>
+                                    <span class="text-xs font-bold">ดูหนัง/YT</span>
+                                    <div class="text-[9px] text-blue-400 mt-1">ช้าลง 20%</div>
+                                </div>
+                            </label>
+                            <label class="cursor-pointer">
+                                <input type="radio" name="activity" value="idle" class="peer hidden" checked onchange="updateCalculation()">
+                                <div class="bg-slate-800 border border-slate-700 rounded-xl p-3 text-center hover:border-green-500 peer-checked:border-green-500 peer-checked:bg-green-900/20 peer-checked:text-green-300 transition-all h-full relative overflow-hidden group">
+                                    <i class="fas fa-power-off text-xl mb-1 block"></i>
+                                    <span class="text-xs font-bold">วางเฉยๆ</span>
+                                    <div class="text-[9px] text-green-400 mt-1">ไวสุด</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Calculation Result Bar -->
+                    <div id="timeResult" class="bg-slate-900 p-4 rounded-lg border border-cyan-900/50 flex justify-between items-center">
+                        <div>
+                            <div class="text-xs text-slate-500">EST. CHARGING TIME</div>
+                            <div class="text-lg text-cyan-300 font-mono font-bold"><i class="fas fa-hourglass-half mr-2"></i><span id="timeDisplay">0</span> Min</div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xs text-slate-500">BILLED HOURS</div>
+                            <div class="text-lg text-white font-mono font-bold"><span id="billedHours">1</span> HR</div>
+                        </div>
+                    </div>
+
+                </div>
+
+                <!-- Footer / Total -->
+                <div class="p-6 bg-slate-900/80 border-t border-cyan-900/50 flex items-center justify-between">
+                    <div>
+                        <div class="text-xs text-slate-500 font-mono">TOTAL PRICE</div>
+                        <div class="text-3xl font-bold text-white font-mono">฿<span id="totalPrice">--</span></div>
+                    </div>
+                    <button onclick="alert('ยืนยันการทำรายการ... ระบบกำลังปลดล็อคพาวเวอร์แบงค์')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-6 py-3 rounded-lg font-bold shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all hover:scale-105 active:scale-95 flex items-center gap-2">
+                        CONFIRM <i class="fas fa-chevron-right text-xs"></i>
                     </button>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- JavaScript Logic -->
     <script>
-        // --- Data Source ---
-        const ddcData = [
-            {
-                code: "000",
-                title: "คอมพิวเตอร์, สารสนเทศ, และความรู้ทั่วไป",
-                color: "#64748b", // Slate
-                description: "หมวดหมู่นี้ครอบคลุมวิชาการที่เพิ่งเกิดขึ้นใหม่ เช่น วิทยาการคอมพิวเตอร์ เทคโนโลยีสารสนเทศ รวมถึงงานอ้างอิงและสื่อทั่วไป เช่น บรรณานุกรม บรรณารักษศาสตร์ สารานุกรม และวารสารทั่วไป. ตามคำขอ หมวดหมู่นี้จะแสดงเฉพาะรายการหลัก 000 เท่านั้น",
-                divisions: [
-                    { code: "000", name: "คอมพิวเตอร์, สารสนเทศ, และความรู้ทั่วไป" }
-                ]
-            },
-            {
-                code: "100",
-                title: "ปรัชญาและจิตวิทยา",
-                color: "#F87171", // Red (Color kept for Stats View only)
-                description: "หมวดหมู่นี้ครอบคลุมแนวคิดหลักเกี่ยวกับความเป็นจริง ความรู้ ค่านิยม และความคิดของมนุษย์ รวมถึงสาขาย่อยสำคัญ เช่น อภิปรัชญา ตรรกศาสตร์ และจิตวิทยาเชิงประยุกต์ เนื้อหาส่วนใหญ่มุ่งเน้นไปที่การทำความเข้าใจจิตใจและพฤติกรรมมนุษย์.",
-                divisions: [
-                    { code: "100", name: "ปรัชญาและจิตวิทยา" },
-                    { code: "110", name: "อภิปรัชญา (Metaphysics)" },
-                    { code: "120", name: "ญาณวิทยา (Epistemology) ความเป็นเหตุผล" },
-                    { code: "130", name: "จิตวิทยานามธรรม (Parapsychology) และไสยศาสตร์" },
-                    { code: "140", name: "แนวความคิดปรัชญาเฉพาะกลุ่ม" },
-                    { code: "150", name: "จิตวิทยา (Psychology)" },
-                    { code: "160", name: "ตรรกศาสตร์ (Logic)" },
-                    { code: "170", name: "จริยธรรมและศีลธรรม (Ethics)" },
-                    { code: "180", name: "ปรัชญาสมัยโบราณ, สมัยกลาง, และปรัชญาตะวันออก" },
-                    { code: "190", name: "ปรัชญาตะวันตกสมัยใหม่" }
-                ]
-            },
-            {
-                code: "200",
-                title: "ศาสนา",
-                color: "#FB923C", // Orange
-                description: "รวบรวมงานเขียนทั้งหมดที่เกี่ยวกับศาสนาโลกต่างๆ รวมถึงประวัติศาสตร์ พิธีกรรม หลักคำสอน และความเชื่อทางศาสนา เน้นหนักที่ศาสนาคริสต์ในหมวด 220-280 และศาสนาเปรียบเทียบในหมวด 290 ซึ่งรวมถึงศาสนาพุทธ อิสลาม และยูดาย.",
-                divisions: [
-                    { code: "200", name: "ศาสนา" },
-                    { code: "210", name: "ปรัชญาและทฤษฎีทางศาสนา" },
-                    { code: "220", name: "พระคัมภีร์ไบเบิล" },
-                    { code: "230", name: "ศาสนาคริสต์ หลักคำสอน" },
-                    { code: "240", name: "ศีลธรรมชาวคริสต์ และการปฏิบัติ" },
-                    { code: "250", name: "ระเบียบแบบแผนของศาสนาคริสต์และนักบวช" },
-                    { code: "260", name: "สังคมและศาสนจักร" },
-                    { code: "270", name: "ประวัติศาสนาคริสต์" },
-                    { code: "280", name: "นิกายต่างๆ ในศาสนาคริสต์" },
-                    { code: "290", name: "ศาสนาเปรียบเทียบและศาสนาอื่นๆ (เช่น พุทธ, อิสลาม)" }
-                ]
-            },
-            {
-                code: "300",
-                title: "สังคมศาสตร์",
-                color: "#FACC15", // Yellow
-                description: "ศึกษาโครงสร้าง พัฒนาการ และปฏิสัมพันธ์ของสังคมมนุษย์ในหลากหลายด้าน ครอบคลุมเศรษฐศาสตร์ รัฐศาสตร์ กฎหมาย การศึกษา ปัญหาสังคม และมานุษยวิทยา เป็นหัวใจสำคัญในการทำความเข้าใจการจัดระเบียบและพฤติกรรมของชุมชน.",
-                divisions: [
-                    { code: "300", name: "สังคมศาสตร์, สังคมวิทยา และมานุษยวิทยา" },
-                    { code: "310", name: "สถิติทั่วไป" },
-                    { code: "320", name: "รัฐศาสตร์ (Political science)" },
-                    { code: "330", name: "เศรษฐศาสตร์ (Economics)" },
-                    { code: "340", name: "กฎหมาย (Law)" },
-                    { code: "350", name: "รัฐประศาสนศาสตร์ และการบริหารกองทัพ" },
-                    { code: "360", name: "ปัญหาสังคมและบริการสังคม" },
-                    { code: "370", name: "การศึกษา (Education)" },
-                    { code: "380", name: "การพาณิชย์, การสื่อสาร และการขนส่ง" },
-                    { code: "390", name: "ขนบธรรมเนียม, ประเพณี และคติชนวิทยา" }
-                ]
-            },
-            {
-                code: "400",
-                title: "ภาษาศาสตร์",
-                color: "#A3E635", // Lime
-                description: "หมวดหมู่นี้เกี่ยวข้องกับภาษาในฐานะระบบสื่อสาร รวมถึงไวยากรณ์ พจนานุกรม และภาษาเฉพาะต่างๆ โดย 410 เป็นภาษาศาสตร์ทั่วไป และ 420-490 เป็นภาษาตามลำดับ เช่น อังกฤษ, เยอรมัน, ฝรั่งเศส, และภาษาอื่นๆ.",
-                divisions: [
-                    { code: "400", name: "ภาษาศาสตร์ (ภาพรวม)" },
-                    { code: "410", name: "ภาษาศาสตร์" },
-                    { code: "420", name: "ภาษาอังกฤษ" },
-                    { code: "430", name: "ภาษาเยอรมัน" },
-                    { code: "440", name: "ภาษาฝรั่งเศส" },
-                    { code: "450", name: "ภาษาอิตาลี" },
-                    { code: "460", name: "ภาษาสเปน และโปรตุเกส" },
-                    { code: "470", name: "ภาษาละติน" },
-                    { code: "480", name: "ภาษากรีก" },
-                    { code: "490", name: "ภาษาอื่นๆ (เช่น ภาษาไทย, ภาษาจีน)" }
-                ]
-            },
-            {
-                code: "500",
-                title: "วิทยาศาสตร์บริสุทธิ์",
-                color: "#4ADE80", // Green
-                description: "เป็นหมวดหมู่สำหรับงานวิจัยและทฤษฎีทางวิทยาศาสตร์ธรรมชาติ ครอบคลุม คณิตศาสตร์ ดาราศาสตร์ ฟิสิกส์ เคมี ธรณีวิทยา และชีววิทยา โดยเน้นความรู้พื้นฐานที่ค้นพบเพื่อทำความเข้าใจโลกและจักรวาล.",
-                divisions: [
-                    { code: "500", name: "วิทยาศาสตร์" },
-                    { code: "510", name: "คณิตศาสตร์ (Mathematics)" },
-                    { code: "520", name: "ดาราศาสตร์ (Astronomy)" },
-                    { code: "530", name: "ฟิสิกส์ (Physics)" },
-                    { code: "540", name: "เคมี (Chemistry)" },
-                    { code: "550", name: "วิทยาศาสตร์โลก (Earth sciences) และธรณีวิทยา" },
-                    { code: "560", name: "บรรพชีวินวิทยา (Paleontology) / ฟอสซิล" },
-                    { code: "570", name: "ชีววิทยา (Biology)" },
-                    { code: "580", name: "พฤกษศาสตร์ (Plants)" },
-                    { code: "590", name: "สัตววิทยา (Animals)" }
-                ]
-            },
-            {
-                code: "600",
-                title: "วิทยาศาสตร์ประยุกต์และเทคโนโลยี",
-                color: "#2DD4BF", // Teal
-                description: "รวบรวมความรู้ที่นำไปประยุกต์ใช้ในการแก้ปัญหาในชีวิตจริง รวมถึง แพทยศาสตร์ วิศวกรรมศาสตร์ เกษตรศาสตร์ การจัดการธุรกิจ และการก่อสร้าง เป็นหมวดที่เน้นการปฏิบัติและการสร้างสรรค์สิ่งใหม่ๆ.",
-                divisions: [
-                    { code: "600", name: "เทคโนโลยี (วิทยาศาสตร์ประยุกต์)" },
-                    { code: "610", name: "แพทยศาสตร์และสุขภาพ (Medicine & Health)" },
-                    { code: "620", name: "วิศวกรรมศาสตร์ (Engineering)" },
-                    { code: "630", name: "เกษตรศาสตร์ (Agriculture)" },
-                    { code: "640", name: "คหกรรมศาสตร์และชีวิตครอบครัว" },
-                    { code: "650", name: "การจัดการธุรกิจ (Management)" },
-                    { code: "660", name: "วิศวกรรมเคมี" },
-                    { code: "670", name: "โรงงานอุตสาหกรรม" },
-                    { code: "680", name: "สินค้าที่ผลิตด้วยเครื่องจักรเฉพาะอย่าง" },
-                    { code: "690", name: "การก่อสร้าง (Building)" }
-                ]
-            },
-            {
-                code: "700",
-                title: "ศิลปะและนันทนาการ",
-                color: "#38BDF8", // Sky
-                description: "ครอบคลุมการแสดงออกทางวัฒนธรรมและความคิดสร้างสรรค์ของมนุษย์ รวมถึง สถาปัตยกรรม ประติมากรรม จิตรกรรม ดนตรี การถ่ายภาพ และกีฬา เป็นแหล่งรวมหนังสือที่เน้นสุนทรียภาพและความบันเทิง.",
-                divisions: [
-                    { code: "700", name: "ศิลปะ" },
-                    { code: "710", name: "การวางผังเมืองและสถาปัตยกรรมภูมิทัศน์" },
-                    { code: "720", name: "สถาปัตยกรรม (Architecture)" },
-                    { code: "730", name: "ประติมากรรม (Sculpture)" },
-                    { code: "740", name: "การวาดเขียนและมัณฑนศิลป์" },
-                    { code: "750", name: "จิตรกรรม (Painting) และภาพเขียน" },
-                    { code: "760", name: "ศิลปะการพิมพ์ (Graphic arts)" },
-                    { code: "770", name: "การถ่ายภาพ (Photography)" },
-                    { code: "780", name: "ดนตรี (Music)" },
-                    { code: "790", name: "ศิลปะการแสดง, นันทนาการ และกีฬา" }
-                ]
-            },
-            {
-                code: "800",
-                title: "วรรณคดี",
-                color: "#818CF8", // Indigo
-                description: "สำหรับงานเขียนเชิงสร้างสรรค์ในรูปแบบต่างๆ เช่น บทกวี บทละคร นวนิยาย และเรียงความ โดยมีการจัดแบ่งย่อยตามภาษาและภูมิภาคเพื่อให้ง่ายต่อการค้นหาวรรณกรรมเฉพาะด้าน.",
-                divisions: [
-                    { code: "800", name: "วรรณคดีและวาทศิลป์" },
-                    { code: "810", name: "วรรณคดีอเมริกัน" },
-                    { code: "820", name: "วรรณคดีอังกฤษ" },
-                    { code: "830", name: "วรรณคดีเยอรมัน" },
-                    { code: "840", name: "วรรณคดีฝรั่งเศส" },
-                    { code: "850", name: "วรรณคดีอิตาลี" },
-                    { code: "860", name: "วรรณคดีสเปนและโปรตุเกส" },
-                    { code: "870", name: "วรรณคดีละติน" },
-                    { code: "880", name: "วรรณคดีกรีก" },
-                    { code: "890", name: "วรรณคดีภาษาอื่นๆ (รวมถึงวรรณคดีไทย)" }
-                ]
-            },
-            {
-                code: "900",
-                title: "ประวัติศาสตร์และภูมิศาสตร์",
-                color: "#C084FC", // Purple
-                description: "ครอบคลุมเรื่องราวทางประวัติศาสตร์โลก การเดินทาง ภูมิศาสตร์ และชีวประวัติบุคคลสำคัญ เป็นหมวดที่ให้ความรู้เกี่ยวกับสถานที่ เวลา และผู้คนต่างๆ ทั่วโลก.",
-                divisions: [
-                    { code: "900", name: "ประวัติศาสตร์และภูมิศาสตร์" },
-                    { code: "910", name: "ภูมิศาสตร์และการท่องเที่ยว" },
-                    { code: "920", name: "ชีวประวัติและพงศาวดาร (Biography)" },
-                    { code: "930", name: "ประวัติศาสตร์ยุคโบราณ" },
-                    { code: "940", name: "ประวัติศาสตร์ยุโรป" },
-                    { code: "950", name: "ประวัติศาสตร์เอเชีย (รวมถึงประวัติศาสตร์ไทย)" },
-                    { code: "960", name: "ประวัติศาสตร์แอฟริกา" },
-                    { code: "970", name: "ประวัติศาสตร์อเมริกาเหนือ" },
-                    { code: "980", name: "ประวัติศาสตร์อเมริกาใต้" },
-                    { code: "990", name: "ประวัติศาสตร์ส่วนอื่นๆ ของโลก (เช่น โอเชียเนีย, ขั้วโลก)" }
-                ]
-            }
+        // Configuration
+        const hourlyBasePrice = 14; 
+        const mahHourlyFactor = 0.0005; 
+        let currentPhoneIndex = null;
+
+        // Expanded Database with Charging Speed (Watts)
+        // รวมทุกยี่ห้อ (Apple, Samsung, Xiaomi, Vivo, Oppo, Realme, Huawei, Honor, Sony, Moto, Google, Tecno, Infinix, Nothing, etc.)
+        const phones = [
+            // Apple
+            { brand: 'Apple', model: 'iPhone 16 Pro Max', battery: 4685, cable: 'USB-C', watts: 27 },
+            { brand: 'Apple', model: 'iPhone 15 Series', battery: 3349, cable: 'USB-C', watts: 20 },
+            { brand: 'Apple', model: 'iPhone 14/13 Series', battery: 3279, cable: 'Lightning', watts: 20 },
+            
+            // Samsung
+            { brand: 'Samsung', model: 'Galaxy S24 Ultra', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'Samsung', model: 'Galaxy S Series (Gen)', battery: 4000, cable: 'USB-C', watts: 25 },
+            { brand: 'Samsung', model: 'Galaxy A Series', battery: 5000, cable: 'USB-C', watts: 25 },
+            { brand: 'Samsung', model: 'Galaxy Z Fold/Flip', battery: 4400, cable: 'USB-C', watts: 25 },
+
+            // Google
+            { brand: 'Google', model: 'Pixel 9 Pro XL', battery: 5060, cable: 'USB-C', watts: 37 },
+            { brand: 'Google', model: 'Pixel 8/7 Series', battery: 4575, cable: 'USB-C', watts: 27 },
+
+            // Xiaomi / Redmi / POCO
+            { brand: 'Xiaomi', model: 'Xiaomi 14 Ultra', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'Xiaomi', model: 'Redmi Note 13 Pro', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'Poco', model: 'POCO F6/X6 Pro', battery: 5000, cable: 'USB-C', watts: 45 },
+
+            // Vivo / iQOO
+            { brand: 'Vivo', model: 'Vivo X100 Pro', battery: 5400, cable: 'USB-C', watts: 45 },
+            { brand: 'Vivo', model: 'Vivo V30/Y Series', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'iQOO', model: 'iQOO 12', battery: 5000, cable: 'USB-C', watts: 45 },
+
+            // OPPO / OnePlus
+            { brand: 'OPPO', model: 'Find X7 Ultra', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'OPPO', model: 'Reno 11 Series', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'OnePlus', model: 'OnePlus 12', battery: 5400, cable: 'USB-C', watts: 45 },
+
+            // Realme
+            { brand: 'Realme', model: 'Realme 12 Pro+', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'Realme', model: 'Realme GT 5', battery: 5240, cable: 'USB-C', watts: 45 },
+
+            // Huawei / Honor
+            { brand: 'Huawei', model: 'Pura 70 Ultra', battery: 5200, cable: 'USB-C', watts: 45 },
+            { brand: 'Huawei', model: 'Mate 60 Pro', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'Honor', model: 'Magic 6 Pro', battery: 5600, cable: 'USB-C', watts: 45 },
+            { brand: 'Honor', model: 'Honor 90/X9b', battery: 5000, cable: 'USB-C', watts: 35 },
+
+            // Sony
+            { brand: 'Sony', model: 'Xperia 1 VI', battery: 5000, cable: 'USB-C', watts: 30 },
+            { brand: 'Sony', model: 'Xperia 10 V', battery: 5000, cable: 'USB-C', watts: 21 },
+
+            // Motorola
+            { brand: 'Motorola', model: 'Edge 50 Pro', battery: 4500, cable: 'USB-C', watts: 45 },
+            { brand: 'Motorola', model: 'Razr 40 Ultra', battery: 3800, cable: 'USB-C', watts: 30 },
+
+            // Infinix / Tecno
+            { brand: 'Infinix', model: 'GT 20 Pro', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'Infinix', model: 'Note 40 Pro', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'Tecno', model: 'Camon 30 Premier', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'Tecno', model: 'Pova 6 Pro', battery: 6000, cable: 'USB-C', watts: 45 },
+
+            // Others
+            { brand: 'Asus', model: 'ROG Phone 8', battery: 5500, cable: 'USB-C', watts: 45 },
+            { brand: 'Nothing', model: 'Phone (2a)', battery: 5000, cable: 'USB-C', watts: 45 },
+            { brand: 'ZTE', model: 'Nubia RedMagic 9', battery: 6500, cable: 'USB-C', watts: 45 },
+            { brand: 'Tablet', model: 'iPad Air/Pro (USB-C)', battery: 8000, cable: 'USB-C', watts: 30 }
         ];
-        
-        // --- Monthly Borrowing Stats Data (Line Chart) ---
-        const ddcColorMap = {
-            "000": "#64748b", "100": "#F87171", "200": "#FB923C", "300": "#FACC15", 
-            "400": "#A3E635", "500": "#4ADE80", "600": "#2DD4BF", "700": "#38BDF8", 
-            "800": "#818CF8", "900": "#C084FC"
-        };
 
-        const ddcMonthlyStats = {
-            months: ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'],
-            datasets: [
-                // Data for 12 months (simulated borrowing counts)
-                { code: "000", label: "000 คอมพิวเตอร์", data: [800, 750, 900, 850, 1000, 950, 1100, 1050, 1150, 1200, 1180, 1300] },
-                { code: "100", label: "100 ปรัชญา", data: [500, 520, 600, 550, 650, 620, 680, 700, 650, 750, 780, 800] },
-                { code: "200", label: "200 ศาสนา", data: [450, 480, 500, 490, 550, 530, 580, 600, 570, 620, 640, 660] },
-                { code: "300", label: "300 สังคมศาสตร์", data: [1200, 1300, 1500, 1450, 1600, 1700, 1800, 1900, 2000, 2100, 2200, 2300] },
-                { code: "400", label: "400 ภาษาศาสตร์", data: [300, 320, 350, 340, 380, 400, 420, 450, 430, 480, 500, 520] },
-                { code: "500", label: "500 วิทยาศาสตร์", data: [900, 880, 1000, 950, 1100, 1050, 1200, 1150, 1250, 1300, 1350, 1400] },
-                { code: "600", label: "600 วิทยาศาสตร์ประยุกต์", data: [1500, 1600, 1750, 1700, 1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500] },
-                { code: "700", label: "700 ศิลปะ", data: [700, 720, 800, 780, 850, 900, 950, 1000, 980, 1050, 1100, 1150] },
-                { code: "800", label: "800 วรรณคดี", data: [2000, 1950, 2200, 2100, 2400, 2500, 2600, 2700, 2800, 2900, 3000, 3100] },
-                { code: "900", label: "900 ประวัติศาสตร์", data: [600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1150] },
-            ].map(d => ({
-                ...d,
-                borderColor: ddcColorMap[d.code],
-                backgroundColor: ddcColorMap[d.code] + '40',
-                borderWidth: 3,
-                pointRadius: 3, // Default point size
-                tension: 0.4,
-                fill: false,
-                hidden: true,
-            }))
-        };
-
-
-        // --- State Management ---
-        let currentFilter = '';
-        let activeCategoryIndex = -1; // -1 means all
-        let currentStatsFilterCode = null; // New state for stats filtering (e.g., "100" or null for All)
-
-        // --- DOM Elements ---
-        const contentGrid = document.getElementById('content-grid');
-        const searchInput = document.getElementById('searchInput');
-        const categoryTitle = document.getElementById('category-title');
-        const categoryDesc = document.getElementById('category-desc');
-        const resetBtn = document.getElementById('resetBtn');
-        const chartCaption = document.getElementById('chart-caption');
-        const ddcTreeList = document.getElementById('ddcTreeList'); // NEW DOM Element
-        
-        // --- Modal DOM Elements ---
-        const subDivisionModal = document.getElementById('subDivisionModal');
-        const closeModalBtn = document.getElementById('closeModalBtn');
-        const modalCodeTitle = document.getElementById('modalCodeTitle');
-        const modalName = document.getElementById('modalName');
-        const modalMainCategory = document.getElementById('modalMainCategory');
-        const modalDetailContent = document.getElementById('modalDetailContent');
-        const viewStatsBtn = document.getElementById('viewStatsBtn');
-        
-        // --- View Elements ---
-        const ddcExplorerView = document.getElementById('ddcExplorerView');
-        const statsView = document.getElementById('statsView');
-        const policyView = document.getElementById('policyView'); 
-        const statsNavBtn = document.getElementById('statsNavBtn');
-        const policyNavBtn = document.getElementById('policyNavBtn');
-        const backToDdcBtn = document.getElementById('backToDdcBtn');
-        const backToDdcPolicyBtn = document.getElementById('backToDdcPolicyBtn');
-        const statsFilterGrid = document.getElementById('statsFilterGrid');
-        const statsChartTitleEl = document.getElementById('statsChartTitle');
-        
-        // --- Initialization ---
-        function init() {
-            renderTreeList(); // Replaced renderChart()
-            renderCards();
-            setupEventListeners();
-            // Set default view
-            switchView('ddc');
-            chartCaption.textContent = 'แสดงหมวดหมู่ทั้งหมด 10 หมวดหลัก';
+        function calculateBaseRate(batteryCap) {
+            return Math.floor(hourlyBasePrice + (batteryCap * mahHourlyFactor));
         }
 
-        // --- View Switching Logic ---
-        function switchView(viewName, filterCode = null) {
-            // Hide all views first
-            ddcExplorerView.classList.add('hidden');
-            statsView.classList.add('hidden');
-            policyView.classList.add('hidden');
+        // Render Cards
+        function renderCards(filter = '') {
+            const grid = document.getElementById('phoneGrid');
+            const noRes = document.getElementById('noResults');
+            grid.innerHTML = '';
 
-            // Manage Search Input visibility
-            const isMainView = viewName === 'ddc';
-            if (isMainView) {
-                searchInput.classList.remove('hidden');
-            } else {
-                searchInput.classList.add('hidden');
+            const filtered = phones.filter(p => 
+                p.model.toLowerCase().includes(filter.toLowerCase()) || 
+                p.brand.toLowerCase().includes(filter.toLowerCase())
+            );
+
+            if (filtered.length === 0) {
+                noRes.classList.remove('hidden'); return;
             }
+            noRes.classList.add('hidden');
 
-            if (viewName === 'ddc') {
-                ddcExplorerView.classList.remove('hidden');
-                // Destroy stats chart when leaving stats view
-                if (statsChart) {
-                    statsChart.destroy();
-                    statsChart = null;
-                }
-            } else if (viewName === 'stats') {
-                statsView.classList.remove('hidden');
-                // Set and render the new filter state
-                currentStatsFilterCode = filterCode;
-                renderStatsFilters(); 
-                renderStatsChart(currentStatsFilterCode);
+            filtered.forEach((phone, index) => {
+                const basePrice = calculateBaseRate(phone.battery);
+                const originalIndex = phones.indexOf(phone);
                 
-                window.scrollTo(0, 0); 
-            } else if (viewName === 'policy') {
-                policyView.classList.remove('hidden');
-                window.scrollTo(0, 0); 
-            }
-        }
-        
-        // --- Sub-Division Detail Logic ---
-        
-        function generateSubDivisionDetail(itemCode, itemName) {
-            // ฟังก์ชันจำลองรายละเอียดเพิ่มเติมสำหรับหมวดหมู่ย่อย
-            const mainCode = itemCode.slice(0, 1) + '00';
-            let detail = `**${itemName}** จัดอยู่ในหมวดหมู่หลัก ${mainCode} โดยมีขอบเขตเนื้อหาดังนี้: `;
-
-            if (mainCode === '100') {
-                detail += 'หมวดหมู่นี้มุ่งเน้นไปที่การศึกษาเชิงทฤษฎีและแนวคิดพื้นฐานเกี่ยวกับมนุษย์และจักรวาล. ครอบคลุมการศึกษาความรู้, การดำรงอยู่ (อภิปรัชญา), ตรรกะ, และประเด็นทางจิตวิทยา. เนื้อหาส่วนใหญ่มักเป็นงานวิเคราะห์ วิจารณ์ หรือการถกเถียงเชิงปรัชญา เพื่อทำความเข้าใจความเป็นไปของสิ่งต่างๆ';
-            } else if (mainCode === '800') {
-                detail += 'หมวดวรรณคดีรวบรวมงานเขียนสร้างสรรค์ทางด้านภาษาและสุนทรียศาสตร์ ทั้งบทกวี, บทละคร, นวนิยาย และเรียงความ. การจัดเก็บจะแบ่งตามภาษาที่ใช้เขียนเป็นหลัก (เช่น 820 ภาษาอังกฤษ, 895 ภาษาอื่นๆ/ไทย) เพื่อให้ง่ายต่อการค้นหางานประพันธ์เฉพาะชาติหรือภาษา.';
-            } else if (mainCode === '300') {
-                detail += 'เป็นศูนย์กลางของการศึกษามนุษย์ในบริบททางสังคมและวัฒนธรรม. หัวข้อสำคัญในหมวดนี้ ได้แก่ รัฐบาล, เศรษฐศาสตร์, กฎหมาย, การศึกษา, และปัญหาสังคม. หนังสือในหมวดนี้ให้ความรู้เกี่ยวกับการจัดระเบียบและการทำงานของชุมชนและประเทศ.';
-            } else if (mainCode === '500') {
-                detail += 'รวบรวมวิทยาศาสตร์ธรรมชาติทั้งหมด เช่น ฟิสิกส์, เคมี, ชีววิทยา, และคณิตศาสตร์. เน้นไปที่ทฤษฎีและการค้นพบทางวิทยาศาสตร์พื้นฐานที่มุ่งทำความเข้าใจปรากฏการณ์ในโลกและจักรวาลโดยไม่มีเป้าหมายเชิงประยุกต์โดยตรง.';
-            }
-            else {
-                detail += 'ข้อมูลเพิ่มเติมเกี่ยวกับหมวดหมู่นี้จะรวมถึงขอบเขตเนื้อหาหลัก, ตัวอย่างหัวข้อที่เกี่ยวข้อง, และความเชื่อมโยงกับหมวดหมู่หลักอื่นๆ ในระบบ DDC โดยมีวัตถุประสงค์เพื่อช่วยให้ผู้ใช้ห้องสมุดสามารถระบุตำแหน่งของหนังสือที่ต้องการได้แม่นยำยิ่งขึ้น.';
-            }
-            
-            return detail;
-        }
-
-        // --- Card Click Handler (UPDATED) ---
-        function handleCardClick(itemCode) {
-            // 1. Find the item and its main category data
-            let selectedItem = null;
-            let mainCategory = null;
-
-            for (const cat of ddcData) {
-                selectedItem = cat.divisions.find(div => div.code === itemCode);
-                if (selectedItem) {
-                    mainCategory = cat;
-                    break;
-                }
-            }
-
-            if (!selectedItem || !mainCategory) return; // Should not happen with valid data
-
-            // 2. Populate Modal Content
-            modalCodeTitle.textContent = selectedItem.code;
-            modalName.textContent = selectedItem.name;
-            modalMainCategory.textContent = `หมวดหมู่หลัก: ${mainCategory.code} ${mainCategory.title}`;
-            
-            // Generate/Set Placeholder Detail
-            modalDetailContent.textContent = generateSubDivisionDetail(selectedItem.code, selectedItem.name);
-            
-            // Store data for View Stats Button
-            viewStatsBtn.setAttribute('data-ddc-code', mainCategory.code);
-
-            // 3. Show Modal
-            subDivisionModal.classList.remove('hidden');
-        }
-
-        // --- Render DDC Cards (Explorer View) ---
-        function renderCards() {
-            contentGrid.innerHTML = '';
-            
-            let dataToRender = [];
-
-            if (activeCategoryIndex !== -1) {
-                const cat = ddcData[activeCategoryIndex];
-                dataToRender = cat.divisions.map(div => ({...div, color: cat.color, mainTitle: cat.title}));
-            } else {
-                ddcData.forEach(cat => {
-                    cat.divisions.forEach(div => {
-                        dataToRender.push({...div, color: cat.color, mainTitle: cat.title});
-                    });
-                });
-            }
-
-            if (currentFilter) {
-                const lowerFilter = currentFilter.toLowerCase();
-                dataToRender = dataToRender.filter(item => 
-                    item.code.includes(lowerFilter) || 
-                    item.name.toLowerCase().includes(lowerFilter) ||
-                    item.mainTitle.toLowerCase().includes(lowerFilter)
-                );
-            }
-
-            if (dataToRender.length === 0) {
-                contentGrid.innerHTML = `
-                    <div class="col-span-1 sm:col-span-2 text-center py-12 text-slate-400">
-                        ไม่พบข้อมูลที่ตรงกับคำค้นหา
-                    </div>`;
-                return;
-            }
-
-            dataToRender.forEach(item => {
                 const card = document.createElement('div');
-                // Cards still use color border for visual segmentation of sub-classes
-                card.className = 'bg-white border-l-4 rounded-r-lg p-4 shadow-sm border-slate-200 hover:bg-slate-50 transition-all card-hover cursor-pointer flex flex-col justify-between';
-                card.style.borderLeftColor = item.color;
+                card.className = 'glass-panel rounded-xl p-6 relative overflow-hidden group hover:border-cyan-400/50 transition-all duration-300 hover:shadow-[0_0_20px_rgba(6,182,212,0.15)]';
                 
                 card.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <span class="text-2xl font-bold font-mono text-slate-700">${item.code}</span>
-                        <span class="text-xs px-2 py-1 rounded bg-slate-100 text-slate-500">${item.mainTitle}</span>
+                    <div class="absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2 border-cyan-500/20 rounded-tr-xl group-hover:border-cyan-400/60 transition-colors"></div>
+                    <div class="absolute bottom-0 left-0 w-8 h-8 border-b-2 border-l-2 border-cyan-500/20 rounded-bl-xl"></div>
+
+                    <div class="flex justify-between items-start mb-4 relative z-10">
+                        <div>
+                            <span class="text-[10px] font-mono text-cyan-500 border border-cyan-900 px-1 rounded bg-cyan-950">${phone.brand.toUpperCase()}</span>
+                            <h3 class="text-xl font-bold text-white mt-1 tracking-wide">${phone.model}</h3>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xl font-mono font-bold text-cyan-400 neon-text">Start ${basePrice}฿</div>
+                            <div class="text-[10px] text-slate-400 font-mono">PER HOUR</div>
+                        </div>
                     </div>
-                    <p class="text-slate-800 font-medium">${item.name}</p>
-                `;
 
-                card.addEventListener('click', () => handleCardClick(item.code));
-
-                contentGrid.appendChild(card);
-            });
-        }
-        
-        // --- NEW: Render DDC Tree List (Replacing Doughnut Chart) ---
-        function handleTreeItemClick(index) {
-            activeCategoryIndex = index;
-            updateHeader();
-            renderCards();
-            updateTreeListActiveState(index);
-        }
-
-        function renderTreeList() {
-            ddcTreeList.innerHTML = '';
-
-            ddcData.forEach((cat, index) => {
-                const item = document.createElement('div');
-                item.className = 'ddc-tree-item';
-                item.setAttribute('data-index', index);
-                
-                // Content is non-colored, using Slate/Black text
-                item.innerHTML = `
-                    <div class="text-3xl font-mono font-bold mr-4 text-slate-700">${cat.code}</div>
-                    <div class="flex flex-col">
-                        <div class="font-semibold text-slate-800">${cat.title}</div>
-                        <div class="text-sm text-slate-500">${cat.description.substring(0, 60)}...</div>
+                    <div class="space-y-3 mb-6 relative z-10">
+                        <div class="flex items-center justify-between text-sm border-b border-slate-700/50 pb-2">
+                            <span class="text-slate-400 font-mono text-xs">BATTERY</span>
+                            <span class="text-slate-200 font-mono">${phone.battery.toLocaleString()} <span class="text-xs text-slate-500">mAh</span></span>
+                        </div>
+                        <div class="flex items-center justify-between text-sm border-b border-slate-700/50 pb-2">
+                            <span class="text-slate-400 font-mono text-xs">SPEED</span>
+                            <span class="text-yellow-400 text-xs font-mono font-bold">Max ${phone.watts}W</span>
+                        </div>
                     </div>
+
+                    <button onclick="openModal(${originalIndex})" class="w-full bg-cyan-900/40 hover:bg-cyan-600 text-cyan-400 hover:text-white border border-cyan-700 hover:border-cyan-400 py-3 rounded font-mono text-sm tracking-wider transition-all duration-300 flex items-center justify-center gap-2 group-hover:neon-border">
+                        <i class="fas fa-calculator"></i> คำนวณค่าเช่า
+                    </button>
                 `;
-                
-                item.addEventListener('click', () => handleTreeItemClick(index));
-                ddcTreeList.appendChild(item);
-            });
-
-            // Set initial state
-            updateTreeListActiveState(activeCategoryIndex);
-        }
-
-        function updateTreeListActiveState(activeIndex) {
-            document.querySelectorAll('.ddc-tree-item').forEach(item => {
-                item.classList.remove('active');
-                if (parseInt(item.getAttribute('data-index')) === activeIndex) {
-                    item.classList.add('active');
-                }
+                grid.appendChild(card);
             });
         }
-        
-        function updateHeader() {
-            if (activeCategoryIndex !== -1) {
-                const cat = ddcData[activeCategoryIndex];
-                categoryTitle.textContent = `${cat.code} - ${cat.title}`;
-                categoryTitle.style.color = '#1e293b'; // Force default text color
-                
-                let divisionCountMessage;
-                if (cat.code === "000") {
-                    divisionCountMessage = `แสดงรายการย่อย 1 รายการในหมวด ${cat.title} (ตามคำขอ)`;
-                } else {
-                    divisionCountMessage = `แสดงรายการย่อย ${cat.divisions.length} รายการในหมวด ${cat.title}`;
-                }
 
-                categoryDesc.textContent = divisionCountMessage;
-                resetBtn.classList.remove('hidden');
-                chartCaption.textContent = `คุณเลือก: ${cat.title}`;
-                chartCaption.style.color = '#475569'; // Force default caption color
+        // --- Modal & Calculation Logic ---
+        function openModal(index) {
+            currentPhoneIndex = index;
+            const phone = phones[index];
+
+            document.getElementById('modalModelName').innerText = phone.model;
+            document.getElementById('modalBattery').innerText = phone.battery.toLocaleString() + ' mAh';
+            document.getElementById('modalSpeed').innerText = 'Max ' + phone.watts + 'W';
+            
+            // Reset Inputs
+            document.getElementById('startPctInput').value = 10;
+            document.getElementById('targetPctInput').value = 100;
+            document.querySelector('input[name="cable"][value="standard"]').checked = true; // Default to Standard
+            document.querySelector('input[name="activity"][value="idle"]').checked = true;
+            
+            updateCalculation();
+            document.getElementById('bookingModal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('bookingModal').classList.add('hidden');
+        }
+
+        function updateCalculation() {
+            if (currentPhoneIndex === null) return;
+            
+            const phone = phones[currentPhoneIndex];
+            const startPct = parseInt(document.getElementById('startPctInput').value);
+            let targetPct = parseInt(document.getElementById('targetPctInput').value);
+            const activity = document.querySelector('input[name="activity"]:checked').value;
+            const cableType = document.querySelector('input[name="cable"]:checked').value;
+
+            // Ensure Target > Start
+            if (targetPct <= startPct) {
+                targetPct = startPct + 1;
+                document.getElementById('targetPctInput').value = targetPct;
+            }
+            
+            // Update UI Displays
+            document.getElementById('startPctDisplay').innerText = startPct;
+            document.getElementById('targetPctDisplay').innerText = targetPct;
+
+            // --- 1. Calculate Needed Energy ---
+            const neededPct = targetPct - startPct;
+            const neededWh = ((phone.battery * 3.7) / 1000) * (neededPct / 100);
+
+            // --- 2. Determine Effective Charging Speed ---
+            // Base Limit: Phone capability OR PB capability (45W)
+            let effectiveWatts = Math.min(phone.watts, 45); 
+
+            // ** Cable Limitation **
+            if (cableType === 'standard') {
+                // If using kiosk cable, limit to 22.5W
+                effectiveWatts = Math.min(effectiveWatts, 22.5);
+            }
+            // If 'own', no additional limit (up to 45W)
+
+            // Adjust speed based on Activity (using energy while charging)
+            let rateModifier = 0; 
+            
+            if (activity === 'game') {
+                effectiveWatts *= 0.6; 
+                rateModifier = 10;
+            } else if (activity === 'media') {
+                effectiveWatts *= 0.8; 
+                rateModifier = 5;
             } else {
-                categoryTitle.textContent = 'หมวดหมู่ทั้งหมด';
-                categoryTitle.style.color = '#1e293b';
-                categoryDesc.textContent = 'คลิกที่การ์ดเพื่อดูรายละเอียดเพิ่มเติม'; // UPDATED DESC
-                resetBtn.classList.add('hidden');
-                chartCaption.textContent = 'แสดงหมวดหมู่ทั้งหมด 10 หมวดหลัก';
-                chartCaption.style.color = '#475569';
-                updateTreeListActiveState(-1);
+                effectiveWatts *= 1.0; 
+                rateModifier = 0;
             }
+
+            // --- 3. Calculate Time ---
+            // Time (Hours) = Energy (Wh) / Power (W)
+            // Add 15% inefficiency/overhead
+            const timeHours = (neededWh / (effectiveWatts * 0.85)); 
+            const timeMinutes = Math.ceil(timeHours * 60);
+
+            // --- 4. Calculate Price (Rounding UP hours) ---
+            const baseRatePerHour = calculateBaseRate(phone.battery) + rateModifier;
+            const billedHours = Math.ceil(timeMinutes / 60); 
+            
+            // Minimum billing 1 hour
+            const finalBilledHours = billedHours < 1 ? 1 : billedHours;
+            const totalPrice = finalBilledHours * baseRatePerHour;
+
+            // Update UI Result
+            document.getElementById('timeDisplay').innerText = timeMinutes;
+            document.getElementById('billedHours').innerText = finalBilledHours;
+            document.getElementById('totalPrice').innerText = totalPrice;
         }
+
+        // Event Listeners
+        document.getElementById('searchInput').addEventListener('input', (e) => renderCards(e.target.value));
         
-        // --- Stats Filter Button Logic (no change) ---
-        
-        function handleStatsFilterClick(filterCode) {
-            currentStatsFilterCode = filterCode;
-            renderStatsChart(currentStatsFilterCode);
-            updateStatsFilterButtons(currentStatsFilterCode);
-        }
-
-        function createFilterButton(code, title, color, filterCode) {
-            const mainDdcCode = filterCode === null ? 'All' : filterCode;
-            const btn = document.createElement('button');
-            btn.id = `filterBtn-${mainDdcCode}`;
-            // Use flex for better alignment
-            btn.className = 'active-filter-btn w-full py-3 px-3 rounded-xl text-sm font-semibold transition-all text-left flex items-center shadow-md';
-            
-            btn.innerHTML = `
-                <span class="font-mono text-xl font-bold mr-3" style="color:${color};">${code !== 'All' ? code : '000'}</span>
-                <span class="text-slate-700 text-sm">${title}</span>
-            `;
-
-            btn.addEventListener('click', () => handleStatsFilterClick(filterCode));
-            return btn;
-        }
-
-        function updateStatsFilterButtons(selectedCode) {
-            const buttons = document.querySelectorAll('.active-filter-btn');
-            
-            buttons.forEach(btn => {
-                // Determine the filter code represented by the button (null for 'All')
-                const btnIdPart = btn.id.split('-')[1];
-                const btnFilterCode = btnIdPart === 'All' ? null : btnIdPart;
-                const originalColor = ddcColorMap[btnFilterCode] || '#1e293b'; // Fallback for 'All'
-                
-                const codeSpan = btn.querySelector('span:first-child');
-                const titleSpan = btn.querySelector('span:last-child');
-                
-                // Reset styles
-                btn.style.backgroundColor = 'white';
-                titleSpan.classList.remove('text-white');
-                titleSpan.classList.add('text-slate-700');
-                btn.classList.remove('selected-filter');
-                btn.style.borderColor = 'white'; // Reset border
-
-                if (btnFilterCode === selectedCode) {
-                    // Apply selected styles
-                    btn.classList.add('selected-filter');
-                    btn.style.backgroundColor = originalColor; // Use DDC color as background
-                    codeSpan.style.color = 'white'; 
-                    titleSpan.classList.add('text-white');
-                    titleSpan.classList.remove('text-slate-700');
-                } else {
-                    // Apply default styles
-                    codeSpan.style.color = originalColor; 
-                }
-            });
-        }
-        
-        function renderStatsFilters() {
-            statsFilterGrid.innerHTML = ''; // Clear previous buttons
-            
-            // 1. Add 'All' button (FilterCode: null)
-            const allBtn = createFilterButton('000-900', 'ภาพรวมทั้งหมด', '#1e293b', null);
-            statsFilterGrid.appendChild(allBtn);
-
-            // 2. Add 10 DDC Main Class buttons (FilterCode: "000", "100", etc.)
-            ddcData.forEach(cat => {
-                const btn = createFilterButton(cat.code, cat.title, cat.color, cat.code);
-                statsFilterGrid.appendChild(btn);
-            });
-            
-            // Set initial selection state
-            updateStatsFilterButtons(currentStatsFilterCode);
-        }
-
-        // --- Stats Chart.js Configuration (Line Chart) (no change) ---
-        let statsChart;
-
-        function renderStatsChart(filterCode = null) {
-            if (statsChart) {
-                statsChart.destroy(); 
-            }
-            
-            const ctx = document.getElementById('statsChart').getContext('2d');
-            
-            const mainCategory = ddcData.find(d => d.code === filterCode);
-            
-            let displayTitle = 'ภาพรวมสถิติการยืม 12 เดือน';
-            if (mainCategory) {
-                displayTitle = `สถิติการยืมรายเดือน: ${mainCategory.code} ${mainCategory.title}`;
-            }
-            statsChartTitleEl.textContent = displayTitle;
-
-
-            const chartDatasets = ddcMonthlyStats.datasets.map(d => {
-                // Determine visibility based on filterCode
-                const isFiltered = filterCode === null || d.code === filterCode;
-                
-                return {
-                    label: d.label,
-                    data: d.data,
-                    borderColor: d.borderColor,
-                    backgroundColor: d.backgroundColor,
-                    borderWidth: isFiltered ? 5 : 2, // Highlight thickness
-                    pointRadius: isFiltered ? 6 : 3, // Highlight point size
-                    pointBackgroundColor: isFiltered ? d.borderColor : '#ffffff',
-                    pointBorderColor: isFiltered ? '#ffffff' : d.borderColor,
-                    tension: 0.4,
-                    fill: false,
-                    // Line opacity: full for filtered, reduced for others when a filter is applied
-                    borderDash: isFiltered || filterCode === null ? [] : [5, 5], 
-                    hidden: filterCode !== null && d.code !== filterCode, 
-                };
-            });
-
-            statsChart = new Chart(ctx, {
-                type: 'line', // Changed to line chart
-                data: {
-                    labels: ddcMonthlyStats.months,
-                    datasets: chartDatasets
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'เดือน',
-                                font: { family: 'Noto Sans Thai', weight: 'bold' }
-                            },
-                            grid: {
-                                display: false
-                            }
-                        },
-                        y: {
-                            beginAtZero: false,
-                            min: 0, 
-                            title: {
-                                display: true,
-                                text: 'จำนวนการยืม (เล่ม)',
-                                font: { family: 'Noto Sans Thai', weight: 'bold' }
-                            },
-                            ticks: {
-                                callback: function(value) {
-                                    return value.toLocaleString(); // Format number with comma
-                                }
-                            }
-                        }
-                    },
-                    plugins: {
-                        legend: {
-                            position: 'bottom',
-                            labels: {
-                                font: {
-                                    family: 'Noto Sans Thai'
-                                },
-                                boxWidth: 20
-                            }
-                        },
-                        tooltip: {
-                            backgroundColor: 'rgba(30, 41, 59, 0.9)',
-                            titleFont: { family: 'Noto Sans Thai', size: 14 },
-                            bodyFont: { family: 'Noto Sans Thai', size: 13 },
-                            padding: 12,
-                            callbacks: {
-                                label: function(context) {
-                                    const label = context.dataset.label || '';
-                                    if (label) {
-                                        return `${label}: ${context.parsed.y.toLocaleString()} เล่ม`;
-                                    }
-                                    return '';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-        }
-        
-        // --- Modal Event Listeners (NEW) ---
-        function setupModalEventListeners() {
-            // Close modal by clicking the X button
-            closeModalBtn.addEventListener('click', () => {
-                subDivisionModal.classList.add('hidden');
-            });
-
-            // Close modal by clicking outside the content
-            subDivisionModal.addEventListener('click', (e) => {
-                if (e.target === subDivisionModal) {
-                    subDivisionModal.classList.add('hidden');
-                }
-            });
-            
-            // Link from modal to stats view
-            viewStatsBtn.addEventListener('click', (e) => {
-                const ddcCode = e.target.getAttribute('data-ddc-code');
-                subDivisionModal.classList.add('hidden'); // Hide modal first
-                if (ddcCode) {
-                    switchView('stats', ddcCode); // Switch to stats view, filtered by main DDC code
-                }
-            });
-        }
-
-
-        // --- Event Listeners ---
-        function setupEventListeners() {
-            // Setup general listeners
-            searchInput.addEventListener('input', (e) => {
-                currentFilter = e.target.value;
-                renderCards();
-            });
-
-            resetBtn.addEventListener('click', () => {
-                activeCategoryIndex = -1;
-                currentFilter = '';
-                searchInput.value = '';
-                
-                updateHeader();
-                renderCards();
-            });
-            
-            // Policy Nav Listener
-            policyNavBtn.addEventListener('click', () => {
-                switchView('policy');
-            });
-            backToDdcPolicyBtn.addEventListener('click', () => {
-                switchView('ddc');
-            });
-
-            // Existing: Stats Nav Listeners
-            statsNavBtn.addEventListener('click', () => {
-                // Navigate to stats view and show all (null filter)
-                switchView('stats', null); 
-            });
-
-            backToDdcBtn.addEventListener('click', () => {
-                switchView('ddc');
-            });
-            
-            // Setup modal listeners
-            setupModalEventListeners();
-        }
-
-        // Start App
-        init();
+        // Init
+        renderCards();
 
     </script>
 </body>
